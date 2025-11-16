@@ -45,10 +45,10 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
         query = parse_qs(parsed_url.query)
         client_ip, client_port = self.client_address
 
-        logging.info(f"Request: {self.command} {self.path}")
-        logging.info(f"Query params: {query}")
-        logging.info(f"Headers: {dict(self.headers)}")
-        logging.info(f"Client: {client_ip}:{client_port}")
+        logging.debug(f"Request: {self.command} {self.path}")
+        logging.debug(f"Query params: {query}")
+        logging.debug(f"Headers: {dict(self.headers)}")
+        logging.debug(f"Client: {client_ip}:{client_port}")
 
     def _send_response(self, code: int, content_bytes: bytes, content_type: str = "text/html; charset=UTF-8"):
         """Helper to send a complete response."""
@@ -97,7 +97,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 return
 
             post_data_bytes = self.rfile.read(content_length)
-            logging.info(f"POST body:\n{post_data_bytes.decode('utf-8', 'ignore')}")
+            logging.debug(f"POST body:\n{post_data_bytes.decode('utf-8', 'ignore')}")
 
             if parsed_url.path in ['/h2', '/h3']:
                 db = getattr(self.server, 'database', None)
@@ -148,7 +148,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 value = float(value_str)
                 label = f'efergy_{hub_version}_{sid}'
 
-                logging.info(f"Logging sensor: {label}, Value: {value}")
+                logging.debug(f"Logging sensor: {label}, Value: {value}")
                 database.log_data(label, value)
 
             except (IndexError, ValueError, TypeError) as e:
