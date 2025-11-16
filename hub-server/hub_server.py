@@ -177,6 +177,11 @@ def run_server(database: Database, host: str = '0.0.0.0', port: int = 5000):
     logging.info(f"Serving HTTP on {host} port {port}...")
 
     try:
+        database.start_aggregator(interval_sec=300)
+    except Exception:
+        logging.exception("Failed to start aggregator thread")
+
+    try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         logging.info("Server shutting down...")
@@ -186,7 +191,7 @@ def run_server(database: Database, host: str = '0.0.0.0', port: int = 5000):
 if __name__ == '__main__':
     # Configure logging
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s'
     )
 

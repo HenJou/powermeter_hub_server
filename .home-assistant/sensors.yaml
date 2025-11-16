@@ -2,14 +2,8 @@
   unique_id: efergy_sql_total_energy
   db_url: sqlite://///energy/data/readings.db
   query: >
-    SELECT  SUM(
-                    ((value / 100.0) * 230 * 0.6 / 10000.0)  -- kW
-                    * (6.0 / 3600.0)                         -- interval in hours
-            ) AS kwh
-    FROM readings
-    INNER JOIN labels
-        ON labels.label_id = readings.label_id
-    WHERE labels.label LIKE 'efergy_h2%';
+    SELECT  SUM(kwh) AS kwh
+    FROM energy_hourly;
   column: kwh
   unit_of_measurement: "kWh"
   device_class: energy

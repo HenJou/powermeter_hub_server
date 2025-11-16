@@ -4,6 +4,9 @@ services:
     container_name: hub-server
     restart: unless-stopped
     stdin_open: true
+    networks:
+      qnet-network:
+        ipv4_address: 10.0.0.212
     ports:
       - "5000:5000"
     volumes:
