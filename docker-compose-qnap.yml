@@ -1,12 +1,9 @@
 services:
-  hub_server:
+  hub-server:
     image: ghcr.io/devoldschool/powermeter_hub_server/hub-server:latest
     container_name: hub-server
     restart: unless-stopped
     stdin_open: true
-    networks:
-      qnet-network:
-        ipv4_address: 10.0.0.212
     ports:
       - "5000:5000"
     volumes:
@@ -14,9 +11,9 @@ services:
     environment:
       TZ: Australia/Brisbane
 
-  legacy_nginx:
+  legacy-nginx:
     image: ghcr.io/devoldschool/powermeter_hub_server/legacy-nginx:latest
-    container_name: legacy_nginx
+    container_name: legacy-nginx
     restart: unless-stopped
     stdin_open: true
     networks:
@@ -31,7 +28,7 @@ services:
     environment:
       TZ: Australia/Brisbane
     depends_on:
-      - hub_server
+      - hub-server
 
 networks:
   qnet-network:
