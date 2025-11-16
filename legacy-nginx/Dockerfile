@@ -29,7 +29,7 @@ RUN wget --no-check-certificate https://www.openssl.org/source/old/1.0.2/openssl
 
 # Nginx 1.10.3
 RUN wget --no-check-certificate http://nginx.org/download/nginx-1.10.3.tar.gz \
-    && tar xzf legacy-nginx-1.10.3.tar.gz
+    && tar xzf nginx-1.10.3.tar.gz
 
 # PCRE 8.45
 RUN wget --no-check-certificate https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz \
@@ -48,7 +48,7 @@ RUN ./config no-shared --prefix=/opt/openssl enable-ssl2 enable-ssl3 enable-ssl3
 # ===== Build Nginx with SSLv3 support =====
 WORKDIR /usr/local/src/nginx-1.10.3
 RUN ./configure \
-    --prefix=/opt/legacy-nginx \
+    --prefix=/opt/nginx \
     --with-http_ssl_module \
     --with-openssl=/usr/local/src/openssl-1.0.2u \
     --with-openssl-opt="no-shared enable-ssl2 enable-ssl3 enable-ssl3-method" \
