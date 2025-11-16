@@ -1,0 +1,32 @@
+- name: Efergy Energy Consumption
+  unique_id: efergy_sql_total_energy
+  db_url: sqlite://///energy/data/readings.db
+  query: >
+    SELECT  SUM(
+                    ((value / 100.0) * 230 * 0.6 / 10000.0)  -- kW
+                    * (6.0 / 3600.0)                         -- interval in hours
+            ) AS kwh
+    FROM readings
+    INNER JOIN labels
+        ON labels.label_id = readings.label_id
+    WHERE labels.label LIKE 'efergy_h2%';
+  column: kwh
+  unit_of_measurement: "kWh"
+  device_class: energy
+  state_class: total_increasing
+
+- name: Efergy Power Usage
+  unique_id: efergy_sql_instant_power
+  db_url: sqlite://///energy/data/readings.db
+  query: >
+    SELECT ((readings.value / 100.0) * 230 * 0.6) / 10000.0 AS kW
+    FROM readings
+    INNER JOIN labels
+        ON labels.label_id = readings.label_id
+    WHERE labels.label LIKE 'efergy_h2%'
+    ORDER BY readings.timestamp DESC
+    LIMIT 1;
+  column: kW
+  unit_of_measurement: "kW"
+  device_class: power
+  state_class: measurement

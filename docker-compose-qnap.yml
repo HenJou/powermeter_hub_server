@@ -1,0 +1,47 @@
+services:
+  hub_server:
+    image: ghcr.io/devoldschool/powermeter_hub_server/hub-server:latest
+    container_name: hub-server
+    restart: unless-stopped
+    stdin_open: true
+    networks:
+      qnet-network:
+        ipv4_address: 10.0.0.212
+    ports:
+      - "5000:5000"
+    volumes:
+      - /share/CACHEDEV1_DATA/Docker/powermeter_hub_server/data:/app/data:rw
+    environment:
+      TZ: Australia/Brisbane
+
+  legacy_nginx:
+    image: ghcr.io/devoldschool/powermeter_hub_server/legacy-nginx:latest
+    container_name: legacy_nginx
+    restart: unless-stopped
+    stdin_open: true
+    networks:
+      qnet-network:
+        ipv4_address: 10.0.0.213
+    ports:
+      - "443:443"
+    volumes:
+      - /share/CACHEDEV1_DATA/Docker/powermeter_hub_server/legacy-nginx/nginx.conf:/opt/legacy-nginx/conf/nginx.conf:rw
+      - /share/CACHEDEV1_DATA/Docker/powermeter_hub_server/legacy-nginx/server.crt:/opt/legacy-nginx/conf/server.crt:rw
+      - /share/CACHEDEV1_DATA/Docker/powermeter_hub_server/legacy-nginx/server.key:/opt/legacy-nginx/conf/server.key:rw
+    environment:
+      TZ: Australia/Brisbane
+    depends_on:
+      - hub_server
+
+networks:
+  qnet-network:
+    driver_opts:
+      iface: eth0
+    driver: qnet
+    ipam:
+      driver: qnet
+      options:
+        iface: eth0
+      config:
+        - subnet: 10.0.0.0/24
+          gateway: 10.0.0.1
