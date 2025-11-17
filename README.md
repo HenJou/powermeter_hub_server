@@ -76,6 +76,15 @@ Create a DNS entry that maps `sensornet.info` to the local IP address of the mac
 Once the hub is rebooted, it will contact `sensornet.info`, be directed to your `legacy-nginx` proxy, and your 
 `hub-server` should start logging data to `readings.db`.
 
+#### Pi-hole example
+
+Navigate to Settings -> Local DNS Records and add the following:
+
+| Domain                              | IP          |
+|-------------------------------------|-------------|
+| [device mac].[h2/h3].sensornet.info | [server ip] |
+| 41.0a.04.001ec0.h2.sensornet.info   | 10.0.0.213  |
+
 
 ## Home Assistant Integration
 
