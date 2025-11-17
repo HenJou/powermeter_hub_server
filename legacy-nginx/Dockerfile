@@ -17,44 +17,38 @@ RUN sed -i '/stretch-updates/d' /etc/apt/sources.list \
         zlib1g-dev \
         libpcre3-dev \
         perl \
+        xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Set workdir for source downloads
-WORKDIR /usr/local/src
+# ---- OFFLINE SOURCE BUNDLE ----
+ADD sources-bundle.tar.gz /usr/local/
+WORKDIR /usr/local/sources
 
-# ===== Download sources =====
-# OpenSSL 1.0.2u
-RUN wget --no-check-certificate https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz \
-    && tar xzf openssl-1.0.2u.tar.gz
+# Verify checksums
+RUN sha256sum -c sources.sha256
 
-# Nginx 1.10.3
-RUN wget --no-check-certificate http://nginx.org/download/nginx-1.10.3.tar.gz \
-    && tar xzf nginx-1.10.3.tar.gz
+# Extract tarballs
+RUN tar -xzf /usr/local/sources/openssl-1.0.2u.tar.gz \
+    && tar -xzf /usr/local/sources/nginx-1.10.3.tar.gz \
+    && tar -xzf /usr/local/sources/pcre-8.45.tar.gz \
+    && tar -xzf /usr/local/sources/zlib-1.2.11.tar.gz
 
-# PCRE 8.45
-RUN wget --no-check-certificate https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz \
-    && tar xzf pcre-8.45.tar.gz
-
-# zlib 1.2.11
-RUN wget --no-check-certificate https://zlib.net/fossils/zlib-1.2.11.tar.gz \
-    && tar xzf zlib-1.2.11.tar.gz
-
-# ===== Build OpenSSL with SSLv3 support =====
-WORKDIR /usr/local/src/openssl-1.0.2u
+# ===== Build OpenSSL with SSLv2/3 support =====
+WORKDIR /usr/local/sources/openssl-1.0.2u
 RUN ./config no-shared --prefix=/opt/openssl enable-ssl2 enable-ssl3 enable-ssl3-method \
-    && make \
+    && make -j"$(nproc)" \
     && make install_sw
 
-# ===== Build Nginx with SSLv3 support =====
-WORKDIR /usr/local/src/nginx-1.10.3
+# ===== Build Nginx with SSLv2/3 support =====
+WORKDIR /usr/local/sources/nginx-1.10.3
 RUN ./configure \
     --prefix=/opt/nginx \
     --with-http_ssl_module \
-    --with-openssl=/usr/local/src/openssl-1.0.2u \
+    --with-openssl=/usr/local/sources/openssl-1.0.2u \
     --with-openssl-opt="no-shared enable-ssl2 enable-ssl3 enable-ssl3-method" \
-    --with-pcre=/usr/local/src/pcre-8.45 \
-    --with-zlib=/usr/local/src/zlib-1.2.11 \
-    && make -j1 \
+    --with-pcre=/usr/local/sources/pcre-8.45 \
+    --with-zlib=/usr/local/sources/zlib-1.2.11 \
+    && make -j"$(nproc)" \
     && make install
 
 # ===== FINAL IMAGE =====
