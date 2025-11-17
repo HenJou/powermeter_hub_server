@@ -83,7 +83,6 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
 
         self.close_connection = True
 
-
     def do_POST(self):
         """Handles POST requests with sensor data."""
         try:
@@ -155,6 +154,12 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 logging.warning(f"Failed to parse line '{line}': {e}")
             except Exception as e:
                 logging.error(f"Unexpected error processing line '{line}': {e}")
+
+    def log_message(self, format, *args):
+        """
+        Suppress default logging
+        """
+        return
 
 
 def run_server(database: Database, host: str = '0.0.0.0', port: int = 5000):
