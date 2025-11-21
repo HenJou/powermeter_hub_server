@@ -17,7 +17,7 @@
     FROM readings
     INNER JOIN labels
         ON labels.label_id = readings.label_id
-    WHERE labels.label LIKE 'efergy_h2%'
+    WHERE labels.label LIKE 'efergy_h%'
     ORDER BY readings.timestamp DESC
     LIMIT 1;
   column: kW
