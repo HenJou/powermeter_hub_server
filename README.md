@@ -85,6 +85,15 @@ Navigate to Settings -> Local DNS Records and add the following:
 | [device mac].[h2/h3].sensornet.info | [server ip] |
 | 41.0a.04.001ec0.h2.sensornet.info   | 10.0.0.213  |
 
+#### pfSense example
+
+Navigate to Services -> DNS Resolver -> Custom Options and add the following:
+
+```
+server:
+    local-zone: "sensornet.info" redirect
+    local-data: "sensornet.info 86400 IN A 192.168.1.100"
+``` 
 
 ## Home Assistant Integration
 
