@@ -5,7 +5,7 @@ services:
     expose:
       - "5000"
     volumes:
-      - ./readings.db:/app/data/readings.db:rw
+      - ./hub-server/data/readings.db:/app/data/readings.db:rw
 
   legacy-nginx:
     build: ./legacy-nginx
