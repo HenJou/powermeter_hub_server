@@ -1,14 +1,28 @@
 services:
   hub-server:
-    build: ./hub-server
+#    build: ./hub-server
+    image: ghcr.io/devoldschool/powermeter_hub_server/hub-server:latest
     container_name: hub-server
     expose:
       - "5000"
     volumes:
       - ./hub-server/data/readings.db:/app/data/readings.db:rw
+    environment:
+      TZ: Australia/Brisbane
+      # Logging
+      LOG_LEVEL: INFO
+      # MQTT
+      MQTT_ENABLED: true
+      MQTT_BROKER: homeassistant.local
+      MQTT_PORT: 1883
+      MQTT_USER: mqtt-broker-username-here
+      MQTT_PASS: your-password-here
+      # Home Assistant Discovery
+      HA_DISCOVERY: true
 
   legacy-nginx:
-    build: ./legacy-nginx
+#    build: ./legacy-nginx
+    image: ghcr.io/devoldschool/powermeter_hub_server/legacy-nginx:latest
     container_name: legacy-nginx
     ports:
       - "443:443"
@@ -16,5 +30,7 @@ services:
       - ./legacy-nginx/nginx.conf:/opt/legacy-nginx/conf/nginx.conf:rw
       - ./legacy-nginx/server.crt:/opt/legacy-nginx/conf/server.crt:rw
       - ./legacy-nginx/server.key:/opt/legacy-nginx/conf/server.key:rw
+    environment:
+      TZ: Australia/Brisbane
     depends_on:
       - hub-server

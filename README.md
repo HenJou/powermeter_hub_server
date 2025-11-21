@@ -88,6 +88,48 @@ Navigate to Settings -> Local DNS Records and add the following:
 
 ## Home Assistant Integration
 
+### Home Assistant Operating System hosted
+
+If your Efergy Hub server is running on HA OS, you can integrate the readings into Home Assistant via [MQTT](https://www.home-assistant.io/integrations/mqtt/).
+
+1. **Configure Environment Variables** for MQTT
+
+Update your environment variables in the `docker-compose.yml` file:
+```
+# Optional: logging level (DEBUG, INFO, WARN, ERROR)
+LOG_LEVEL=INFO
+
+# Enable MQTT (true/false)
+MQTT_ENABLED=true
+
+# MQTT broker details
+MQTT_BROKER=homeassistant.local
+MQTT_PORT=1883
+MQTT_USER=mqtt-broker-username-here
+MQTT_PASS=your-password-here
+
+# Home Assistant MQTT Discovery
+HA_DISCOVERY=true
+```
+
+2. **Home Assistant Auto-Discovery** 
+
+With `HA_DISCOVERY=true`, the hub-server will automatically publish Home Assistant MQTT discovery payloads. This creates two sensors per Efergy device:
+
+| Sensor                             | Topic                               | Unit | Device Class | State Class      |
+|------------------------------------|-------------------------------------|------|--------------|------------------|
+| `sensor.efergy_power_usage`        | `home/efergy/<sensor_label>/power`  | kW   | power        | measurement      |
+| `sensor.efergy_energy_consumption` | `home/efergy/<sensor_label>/energy` | kWh  | energy       | total_increasing |
+
+
+Home Assistant will pick up these sensors automatically, making them available for dashboards, automations, and the Energy Dashboard.
+
+3. Add Sensors to Energy Dashboard
+Once discovered, the `sensor.efergy_energy_consumption` sensor can be added to Home Assistant’s Energy Dashboard under Grid Consumption, allowing you to track daily, weekly, and monthly usage.
+
+
+### Container hosted
+
 You can integrate your local energy data into Home Assistant using the [SQL Sensor](https://www.home-assistant.io/integrations/sql/) 
 integration. 
 This allows Home Assistant to directly query the `readings.db` file.

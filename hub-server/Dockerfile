@@ -3,7 +3,7 @@ FROM python:3.9-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy this service's files (hub-server.py, db.py, requirements.txt)
+# Copy this service's files (hub-server.py, database.py, requirements.txt, etc)
 COPY . .
 
 # Install the Python dependencies (if any)
