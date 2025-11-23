@@ -144,8 +144,7 @@ class Database:
                 # The 'with' block automatically commits on success
 
             logging.debug(
-                f"{time.strftime('%Y%m%d-%H%M%S', time.localtime(timestamp))}: "
-                f"{label} ({label_id}), {value}"
+                f"Inserted reading: {label} ({label_id}), {value}"
             )
 
         except sqlite3.Error as e:

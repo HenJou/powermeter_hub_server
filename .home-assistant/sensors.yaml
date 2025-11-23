@@ -13,7 +13,13 @@
   unique_id: efergy_sql_instant_power
   db_url: sqlite://///energy/data/readings.db
   query: >
-    SELECT ((readings.value / 100.0) * 230 * 0.6) / 10000.0 AS kW
+    SELECT  CASE
+                WHEN labels.label LIKE '%h2%'
+                    THEN ((readings.value / 100.0) * 230 * 0.6) / 10000.0
+                WHEN labels.label LIKE '%h3%'
+                    THEN (readings.value / 10.0) / 1000.0
+                ELSE readings.value
+            END AS kW
     FROM readings
     INNER JOIN labels
         ON labels.label_id = readings.label_id

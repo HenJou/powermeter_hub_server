@@ -17,6 +17,8 @@ from config import (
     SERVER_PORT, LOG_LEVEL
 )
 
+POWER_FACTOR = 0.6
+MAINS_VOLTAGE = 230
 
 class EfergyHTTPServer(HTTPServer):
     """
@@ -118,18 +120,23 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 return
 
             post_data_bytes = self.rfile.read(content_length)
-            logging.debug(f"POST body:\n{post_data_bytes.decode('utf-8', 'ignore')}")
+            logging.debug(f"POST body: {post_data_bytes.decode('utf-8', 'ignore')}")
 
-            if parsed_url.path in ["/h2", "/h3"]:
-                db = getattr(self.server, "database", None)
+            db = getattr(self.server, "database", None)
+            if not db:
+                logging.error("Database not initialized on server instance.")
+                self._send_response(500, b"Server Error: DB not configured")
+                return
 
-                if not db:
-                    logging.error("Database not initialized on server instance.")
-                    self._send_response(500, b"Server Error: DB not configured")
-                    return
-
+            content_type = self.headers.get("Content-Type", "")
+            if content_type == "application/eh-ping":
+                sensor_ids = post_data_bytes.decode("utf-8").strip().split("|")
+                logging.debug(f"Received ping from sensors: {sensor_ids}")
+            elif parsed_url.path in ["/h2", "/h3"]:
                 hub_version = parsed_url.path.strip("/")
                 self.process_sensor_data(post_data_bytes, hub_version, db)
+            else:
+                logging.warning(f"Unknown POST path or content-type: {self.path} / {content_type}")
 
             self._send_response(200, b"")
 
@@ -201,13 +208,19 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 label = f"efergy_{hub_version}_{sid}"
 
                 # Convert into kW
-                kw_value = ((value / 100.0) * 230 * 0.6) / 10000.0
+                if hub_version == "h2":
+                    kw_value = ((value / 100.0) * MAINS_VOLTAGE * POWER_FACTOR) / 10000.0
+                elif hub_version == "h3":
+                    kw_value = (value / 10.0) / 1000.0
+                else:
+                    logging.warning(f"Unknown hub version: {hub_version}, skipping kW conversion")
+                    kw_value = value
 
                 logging.debug(f"Logging sensor: {label}, raw: {value}, kW: {kw_value}")
                 database.log_data(label, value)
 
                 # Publish power reading
-                mqtt_manager.publish_power(label, kw_value, hub_version)
+                mqtt_manager.publish_power(label, kw_value)
 
             except (IndexError, ValueError, TypeError) as e:
                 logging.warning(f"Failed to parse line '{line}': {e}")
