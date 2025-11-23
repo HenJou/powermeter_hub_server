@@ -109,6 +109,7 @@ class MQTTManager:
             "device_class": "power",
             "state_class": "measurement",
             "device": {
+                "name": "Efergy Hub",
                 "identifiers": [f"efergy"],
                 "manufacturer": "Efergy",
                 "model": f"Hub"
@@ -138,9 +139,10 @@ class MQTTManager:
             "device_class": "energy",
             "state_class": "total_increasing",
             "device": {
+                "name": "Efergy Hub",
                 "identifiers": [f"efergy"],
                 "manufacturer": "Efergy",
-                "model": f"Hub"
+                "model": f"Hub",
             }
         }
 
