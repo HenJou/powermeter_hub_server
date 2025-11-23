@@ -71,7 +71,7 @@ Finally, you must trick your Efergy Hub into sending data to your new server ins
 The easiest way to do this is with DNS spoofing on your router (e.g., using `dnsmasq`, `Pi-hole`, or similar):
 
 Create a DNS entry that maps `sensornet.info` to the local IP address of the machine running your Docker container 
-(e.g., `192.168.1.100`).
+(e.g., `10.0.0.213`).
 
 Once the hub is rebooted, it will contact `sensornet.info`, be directed to your `legacy-nginx` proxy, and your 
 `hub-server` should start logging data to `readings.db`.
@@ -92,7 +92,7 @@ Navigate to Services -> DNS Resolver -> Custom Options and add the following:
 ```
 server:
     local-zone: "sensornet.info" redirect
-    local-data: "sensornet.info 86400 IN A 192.168.1.100"
+    local-data: "sensornet.info 86400 IN A 10.0.0.213"
 ``` 
 
 ## Home Assistant Integration
