@@ -220,7 +220,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 database.log_data(label, value)
 
                 # Publish power reading
-                mqtt_manager.publish_power(label, kw_value)
+                mqtt_manager.publish_power(label, sid, kw_value)
 
             except (IndexError, ValueError, TypeError) as e:
                 logging.warning(f"Failed to parse line '{line}': {e}")

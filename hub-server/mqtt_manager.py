@@ -93,14 +93,14 @@ class MQTTManager:
             logging.error(f"MQTT publish failed: {topic} — {e}")
 
 
-    def publish_power_discovery(self, label: str, topic: str):
+    def publish_power_discovery(self, label: str, sid: str, topic: str):
         if not self.enabled or not HA_DISCOVERY:
             return
 
         config_topic = f"{HA_DISCOVERY_PREFIX}/sensor/{label}/config"
 
         payload = {
-            "name": "Live power usage",
+            "name": f"Live power usage - {sid}",
             "state_topic": topic,
             "unit_of_measurement": "kW",
             "value_template": "{{ value_json.value }}",
@@ -151,7 +151,7 @@ class MQTTManager:
 
 
     # Publishes reading AND automatically discovery if needed
-    def publish_power(self, label: str, value_kw: float):
+    def publish_power(self, label: str, sid: str, value_kw: float):
         if not self.enabled:
             return
 
@@ -163,7 +163,7 @@ class MQTTManager:
 
         # Publish discovery ONLY once
         if self.discovery_enabled and label not in self.discovery_sent:
-            self.publish_power_discovery(label, topic)
+            self.publish_power_discovery(label, sid, topic)
             self.discovery_sent.add(label)
 
 
@@ -207,8 +207,9 @@ class MQTTManager:
                 continue
 
             # Power topic
+            sid = parts[2]
             power_topic = self.get_topic(label, sensor_type="power")
-            self.publish_power_discovery(label, power_topic)
+            self.publish_power_discovery(label, sid, power_topic)
 
         # Energy topic
         energy_topic = self.get_topic(ENERGY_SENSOR_LABEL, sensor_type="energy")
