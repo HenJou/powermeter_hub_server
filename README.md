@@ -125,10 +125,10 @@ HA_DISCOVERY=true
 
 With `HA_DISCOVERY=true`, the hub-server will automatically publish Home Assistant MQTT discovery payloads. This creates two sensors per Efergy device:
 
-| Sensor                             | Topic                               | Unit | Device Class | State Class      |
-|------------------------------------|-------------------------------------|------|--------------|------------------|
-| `sensor.efergy_power_usage`        | `home/efergy/<sensor_label>/power`  | kW   | power        | measurement      |
-| `sensor.efergy_energy_consumption` | `home/efergy/<sensor_label>/energy` | kWh  | energy       | total_increasing |
+| Sensor                                   | Topic                               | Unit | Device Class | State Class      |
+|------------------------------------------|-------------------------------------|------|--------------|------------------|
+| `sensor.efergy_hub_live_power_usage_SID` | `home/efergy/<sensor_label>/power`  | kW   | power        | measurement      |
+| `sensor.efergy_hub__energy_consumption`  | `home/efergy/<sensor_label>/energy` | kWh  | energy       | total_increasing |
 
 
 Home Assistant will pick up these sensors automatically, making them available for dashboards, automations, and the Energy Dashboard.
@@ -169,5 +169,5 @@ sql: !include sensors.yaml
 5. **Restart Home Assistant**.
 
 You will now have two sensors:
-* `sensor.efergy_power_usage`: The instantaneous power reading in kW.
-* `sensor.efergy_energy_consumption`: A running total of energy consumed in kWh, which can be added directly to your Home Assistant Energy Dashboard.
+* `sensor.efergy_hub_live_power_usage_SID`: The instantaneous power reading in kW.
+* `sensor.efergy_hub_energy_consumption`: A running total of energy consumed in kWh, which can be added directly to your Home Assistant Energy Dashboard.
