@@ -54,6 +54,8 @@ RUN ./configure \
 # ===== FINAL IMAGE =====
 FROM debian:stretch-slim
 
+LABEL org.opencontainers.image.description="Legacy Nginx for PowerMeter Hub Server."
+
 # Install editors for debugging
 RUN sed -i '/stretch-updates/d' /etc/apt/sources.list \
     && sed -i 's|deb.debian.org|archive.debian.org|g' /etc/apt/sources.list \

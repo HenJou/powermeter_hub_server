@@ -53,3 +53,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.TAGS }}
+          labels: |
+            org.opencontainers.image.description=Legacy Nginx for PowerMeter Hub Server.
