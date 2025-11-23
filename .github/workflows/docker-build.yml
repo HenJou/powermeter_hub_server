@@ -51,11 +51,11 @@ jobs:
       # Step 5: Determine tags
       - name: Determine tags
         run: |
-          echo "TAGS=${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${GITHUB_SHA}" >> $GITHUB_ENV
-          # If triggered by a release, add semantic version tag
+          TAGS="${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${GITHUB_SHA}"
           if [ "${{ github.event_name }}" = "release" ]; then
-            echo "TAGS=${TAGS},${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+            TAGS="$TAGS,${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}"
           fi
+          echo "TAGS=$TAGS" >> $GITHUB_ENV
 
       # Step 6: Build and push Docker image
       - name: Build & Push
