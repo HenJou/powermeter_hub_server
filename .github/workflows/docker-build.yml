@@ -24,6 +24,36 @@ jobs:
       # Step 1: Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 2 # required for diff
+
+      # Step 1.5: Detect changes for legacy-nginx
+      - name: Check if legacy-nginx changed
+        id: changes
+        run: |
+          if [ "${{ matrix.image }}" != "legacy-nginx" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Checking changes for legacy-nginx..."
+          if git diff --quiet HEAD^ HEAD -- legacy-nginx; then
+            echo "No changes detected."
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected."
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Step 1.6: Skip legacy-nginx build if no changes
+      - name: Skip legacy-nginx build
+        if: matrix.image == 'legacy-nginx' && steps.changes.outputs.changed == 'false'
+        run: echo "Skipping legacy-nginx – no changes detected."
+
+      # Stop job early if legacy build should skip
+      - name: Stop for skipped job
+        if: matrix.image == 'legacy-nginx' && steps.changes.outputs.changed == 'false'
+        run: exit 0
 
       # Step 2: Log in to GitHub Container Registry
       - name: Log in to GHCR
