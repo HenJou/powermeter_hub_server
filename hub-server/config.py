@@ -1,7 +1,7 @@
 import os
 
 # Hub server config
-SERVER_PORT = int(os.getenv("SERVER_PORT", "500"))
+SERVER_PORT = int(os.getenv("SERVER_PORT", "5000"))
 MAINS_VOLTAGE = int(os.getenv("MAINS_VOLTAGE", "230"))
 POWER_FACTOR = float(os.getenv("POWER_FACTOR", "0.6"))
 
