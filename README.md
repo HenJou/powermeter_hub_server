@@ -17,23 +17,6 @@ This project solves the problem with a two-service system managed by Docker Comp
 1. **`legacy-nginx` Service**: A custom-built Nginx server acts as a reverse proxy. It uses an old version of OpenSSL (1.0.2u) specifically compiled to accept the hub's SSLv3 connection. It then terminates the SSL and forwards the decrypted HTTP traffic to the Python application.
 2. **`hub-server` Service**: A lightweight Python 3 server (`hub_server.py`) that listens for the forwarded requests. It receives the plain HTTP request from the Nginx proxy, emulates the Efergy API, and logs the data to a SQLite database (`readings.db`) using the `db.py` script.
 
-## Efergy Data Format
-
-The hub sends data via `POST` requests to the `/h2` or `/h3` endpoint. The body of this request contains a pipe-delimited string with the sensor data.
-
-**Example Packet:** `741459|1|EFCT|P1,2479.98`
-
-Here is a breakdown of the data structure:
-
-| Index | Value      | Purpose                                                                                                                      |
-|-------|------------|------------------------------------------------------------------------------------------------------------------------------|
-| [0]   | 741459     | **Sensor ID** (`sid`): This is the unique ID for your transmitter. This is the **primary value** used by the logger.         |
-| [1]   | 1          | **(Guessed) Transmitter Port**: The Efergy transmitter has 3-5 ports. This `1` likely indicates the data is from **Port 1**. |
-| [2]   | EFCT       | **(Guessed) Data Type ID**: A "Channel ID" that likely stands for **EF** (Efergy) + **CT** (Current Transformer).            |
-| [3]   | P1,2479.98 | **Port 1 Value**: Contains the port identifier (`P1`) and the actual power reading in Watts (`2479.98`).                     |
-
-The Python server parses this string to extract the **Sensor ID** (`741459`) and the **Value** (`2479.98`).
-It then logs this value to the database under a label like `efergy_h2_741459`.
 
 ## Setup with Docker Compose
 
@@ -171,3 +154,13 @@ sql: !include sensors.yaml
 You will now have two sensors:
 * `sensor.efergy_hub_live_power_usage_SID`: The instantaneous power reading in kW.
 * `sensor.efergy_hub_energy_consumption`: A running total of energy consumed in kWh, which can be added directly to your Home Assistant Energy Dashboard.
+
+
+### Other
+
+* [QNAP NAS](https://github.com/DevOldSchool/powermeter_hub_server/wiki/QNAP-NAS-Setup)
+* [Synology NAS](https://github.com/DevOldSchool/powermeter_hub_server/wiki/Synology-NAS-Setup)
+
+## Efergy Data Format
+
+Documentation about the known data formats is within the [Wiki](https://github.com/DevOldSchool/powermeter_hub_server/wiki/Efergy-Data-Format).

@@ -4,10 +4,24 @@ import time
 import paho.mqtt.client as mqtt
 from config import (
     MQTT_ENABLED, MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS,
-    MQTT_BASE_TOPIC, HA_DISCOVERY, HA_DISCOVERY_PREFIX
+    MQTT_BASE_TOPIC, HA_DISCOVERY, HA_DISCOVERY_PREFIX,
+    POWER_NAME, POWER_ICON, POWER_DEVICE_CLASS, POWER_STATE_CLASS,
+    POWER_UNIT_OF_MEASUREMENT_H2, POWER_VALUE_TEMPLATE_H2,
+    POWER_UNIT_OF_MEASUREMENT_H3, POWER_VALUE_TEMPLATE_H3,
+    ENERGY_NAME, ENERGY_ICON, ENERGY_DEVICE_CLASS, ENERGY_STATE_CLASS,
+    ENERGY_UNIT_OF_MEASUREMENT, ENERGY_VALUE_TEMPLATE,
+    DEVICE_NAME, DEVICE_MODEL, DEVICE_IDENTIFIERS, DEVICE_MANUFACTURER
 )
 
 ENERGY_SENSOR_LABEL = "energy_consumption"
+
+
+def get_topic(label, sensor_type="power"):
+    if sensor_type == "power":
+        return f"{MQTT_BASE_TOPIC}/{label}/power"
+    else:
+        return f"{MQTT_BASE_TOPIC}/{label}/energy"
+
 
 class MQTTManager:
     def __init__(self, max_retries: int = 10, retry_interval: int = 5):
@@ -57,18 +71,18 @@ class MQTTManager:
         self.enabled = False
 
 
-    def _on_connect(self, client, userdata, flags, rc, properties=None):
-        if rc == 0:
+    def _on_connect(self, client, userdata, flags, reason_code, properties=None):
+        if reason_code == 0:
             self.connected = True
             logging.debug("MQTT connected successfully.")
         else:
-            logging.warning(f"MQTT connection returned code {rc}")
+            logging.warning(f"MQTT connection returned code {reason_code}")
 
 
-    def _on_disconnect(self, client, userdata, rc):
+    def _on_disconnect(self, client, userdata, flags, reason_code, properties):
         self.connected = False
-        if rc != 0:
-            logging.warning(f"Unexpected MQTT disconnect (rc={rc}). Will auto-reconnect.")
+        if reason_code != 0:
+            logging.warning(f"Unexpected MQTT disconnect (rc={reason_code}). Will auto-reconnect.")
 
 
     # Generic publishing
@@ -93,26 +107,38 @@ class MQTTManager:
             logging.error(f"MQTT publish failed: {topic} — {e}")
 
 
-    def publish_power_discovery(self, label: str, sid: str, topic: str):
+    def publish_power_discovery(self, label: str, sid: str, topic: str, hub_version: str):
         if not self.enabled or not HA_DISCOVERY:
             return
 
         config_topic = f"{HA_DISCOVERY_PREFIX}/sensor/{label}/config"
 
+        if hub_version == "h2":
+            # value is in hundredths of an amp (A * 100)
+            unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H2
+            value_template = POWER_VALUE_TEMPLATE_H2
+        elif hub_version == "h3":
+            # value is in deciwatts (W * 10)
+            unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H3
+            value_template = POWER_VALUE_TEMPLATE_H3
+        else:
+            unit_of_measurement = "kW"
+            value_template = "{{ (value_json.value | float) }}"
+
         payload = {
-            "name": f"Live power usage - {sid}",
+            "name": f"{POWER_NAME} - {sid}",
             "state_topic": topic,
-            "unit_of_measurement": "kW",
-            "value_template": "{{ value_json.value }}",
+            "unit_of_measurement": unit_of_measurement,
+            "value_template": value_template,
             "unique_id": label,
-            "icon": "mdi:flash",
-            "device_class": "power",
-            "state_class": "measurement",
+            "icon": POWER_ICON,
+            "device_class": POWER_DEVICE_CLASS,
+            "state_class": POWER_STATE_CLASS,
             "device": {
-                "name": "Efergy Hub",
-                "identifiers": [f"efergy"],
-                "manufacturer": "Efergy",
-                "model": f"Hub"
+                "name": DEVICE_NAME,
+                "identifiers": DEVICE_IDENTIFIERS,
+                "manufacturer": DEVICE_MANUFACTURER,
+                "model": DEVICE_MODEL
             }
         }
 
@@ -130,19 +156,19 @@ class MQTTManager:
         config_topic = f"{HA_DISCOVERY_PREFIX}/sensor/{ENERGY_SENSOR_LABEL}/config"
 
         payload = {
-            "name": "Energy consumption",
+            "name": ENERGY_NAME,
             "state_topic": topic,
-            "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.value }}",
+            "unit_of_measurement": ENERGY_UNIT_OF_MEASUREMENT,
+            "value_template": ENERGY_VALUE_TEMPLATE,
             "unique_id": ENERGY_SENSOR_LABEL,
-            "icon": "mdi:lightning-bolt",
-            "device_class": "energy",
-            "state_class": "total_increasing",
+            "icon": ENERGY_ICON,
+            "device_class": ENERGY_DEVICE_CLASS,
+            "state_class": ENERGY_STATE_CLASS,
             "device": {
-                "name": "Efergy Hub",
-                "identifiers": [f"efergy"],
-                "manufacturer": "Efergy",
-                "model": f"Hub",
+                "name": DEVICE_NAME,
+                "identifiers": DEVICE_IDENTIFIERS,
+                "manufacturer": DEVICE_MANUFACTURER,
+                "model": DEVICE_MODEL
             }
         }
 
@@ -151,19 +177,19 @@ class MQTTManager:
 
 
     # Publishes reading AND automatically discovery if needed
-    def publish_power(self, label: str, sid: str, value_kw: float):
+    def publish_power(self, label: str, sid: str, hub_version: str, value: float):
         if not self.enabled:
             return
 
-        logging.debug(f"Publishing power for {label} with value {value_kw}")
-        topic = f"{MQTT_BASE_TOPIC}/{label}/power"
+        logging.debug(f"Publishing power for {label} with value {value}")
+        topic = get_topic(label, sensor_type="power")
 
         # Publish actual reading
-        self.publish(topic, {"value": value_kw})
+        self.publish(topic, {"value": value})
 
         # Publish discovery ONLY once
         if self.discovery_enabled and label not in self.discovery_sent:
-            self.publish_power_discovery(label, sid, topic)
+            self.publish_power_discovery(label, sid, topic, hub_version)
             self.discovery_sent.add(label)
 
 
@@ -175,7 +201,7 @@ class MQTTManager:
             return
 
         logging.debug(f"Publishing energy for {ENERGY_SENSOR_LABEL} with value {value_kwh}")
-        topic = f"{MQTT_BASE_TOPIC}/{ENERGY_SENSOR_LABEL}/energy"
+        topic = get_topic(ENERGY_SENSOR_LABEL, sensor_type="energy")
 
         # Publish energy consumption
         self.publish(topic, {"value": value_kwh})
@@ -183,13 +209,6 @@ class MQTTManager:
         # Publish discovery ONLY once
         if self.discovery_enabled and ENERGY_SENSOR_LABEL not in self.discovery_sent:
             self.publish_energy_discovery(topic)
-
-
-    def get_topic(self, label, sensor_type="power"):
-        if sensor_type == "power":
-            return f"{MQTT_BASE_TOPIC}/{label}/power"
-        else:
-            return f"{MQTT_BASE_TOPIC}/{label}/energy"
 
 
     def publish_startup_discovery(self, labels):
@@ -207,10 +226,11 @@ class MQTTManager:
                 continue
 
             # Power topic
+            hub_version = parts[1]
             sid = parts[2]
-            power_topic = self.get_topic(label, sensor_type="power")
-            self.publish_power_discovery(label, sid, power_topic)
+            power_topic = get_topic(label, sensor_type="power")
+            self.publish_power_discovery(label, sid, power_topic, hub_version)
 
         # Energy topic
-        energy_topic = self.get_topic(ENERGY_SENSOR_LABEL, sensor_type="energy")
+        energy_topic = get_topic(ENERGY_SENSOR_LABEL, sensor_type="energy")
         self.publish_energy_discovery(energy_topic)

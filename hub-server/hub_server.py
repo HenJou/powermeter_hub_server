@@ -28,15 +28,17 @@ class EfergyHTTPServer(HTTPServer):
     """
     def __init__(self,
                  server_address: tuple[str, int],
-                 RequestHandlerClass: Type[SimpleHTTPRequestHandler],
+                 request_handler_class: Type[SimpleHTTPRequestHandler],
                  database: Database,
+                 mqtt_manager: MQTTManager,
                  bind_and_activate: bool = True):
 
         # Store the database instance *before* calling super_init
         # so it's available if the handler needs it during init.
         self.database = database
+        self.mqtt_manager = mqtt_manager
         self.published_discovery = set()
-        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
+        super().__init__(server_address, request_handler_class, bind_and_activate)
 
 
 class FakeEfergyServer(SimpleHTTPRequestHandler):
@@ -207,20 +209,11 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
 
                 label = f"efergy_{hub_version}_{sid}"
 
-                # Convert into kW
-                if hub_version == "h2":
-                    kw_value = ((value / 100.0) * MAINS_VOLTAGE * POWER_FACTOR) / 10000.0
-                elif hub_version == "h3":
-                    kw_value = (value / 10.0) / 1000.0
-                else:
-                    logging.warning(f"Unknown hub version: {hub_version}, skipping kW conversion")
-                    kw_value = value
-
-                logging.debug(f"Logging sensor: {label}, raw: {value}, kW: {kw_value}")
+                logging.debug(f"Logging sensor: {label}, raw: {value}")
                 database.log_data(label, value)
 
                 # Publish power reading
-                mqtt_manager.publish_power(label, sid, kw_value)
+                self.server.mqtt_manager.publish_power(label, sid, hub_version, value)
 
             except (IndexError, ValueError, TypeError) as e:
                 logging.warning(f"Failed to parse line '{line}': {e}")
@@ -250,6 +243,7 @@ def run_server(database: Database, host: str = '0.0.0.0', port: int = 5000):
         server_address,
         FakeEfergyServer,
         database=database,
+        mqtt_manager=mqtt_manager,
     )
 
     logging.info(f"Serving HTTP on {host} port {port}...")
