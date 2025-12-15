@@ -24,7 +24,10 @@ This project solves the problem with a two-service system managed by Docker Comp
 
 The `legacy-nginx` service requires SSL certificates to run. A helper script is provided to generate self-signed certificates.
 
-1. Open generate_cert.sh in a text editor.
+1. Make the script executable:
+```shell
+chmod +x ./generate-certs.sh
+```
 2. Run the script from the project's root directory:
 
 ```shell
