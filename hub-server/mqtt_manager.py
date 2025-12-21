@@ -6,6 +6,7 @@ from config import (
     MQTT_ENABLED, MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS,
     MQTT_BASE_TOPIC, HA_DISCOVERY, HA_DISCOVERY_PREFIX,
     POWER_NAME, POWER_ICON, POWER_DEVICE_CLASS, POWER_STATE_CLASS,
+    POWER_UNIT_OF_MEASUREMENT_H1, POWER_VALUE_TEMPLATE_H1,
     POWER_UNIT_OF_MEASUREMENT_H2, POWER_VALUE_TEMPLATE_H2,
     POWER_UNIT_OF_MEASUREMENT_H3, POWER_VALUE_TEMPLATE_H3,
     ENERGY_NAME, ENERGY_ICON, ENERGY_DEVICE_CLASS, ENERGY_STATE_CLASS,
@@ -113,7 +114,11 @@ class MQTTManager:
 
         config_topic = f"{HA_DISCOVERY_PREFIX}/sensor/{label}/config"
 
-        if hub_version == "h2":
+        if hub_version == "h1" or hub_version.startswith("v1"):
+            # V1 hub: value is already in watts, convert to kW
+            unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H1
+            value_template = POWER_VALUE_TEMPLATE_H1
+        elif hub_version == "h2":
             # value is in hundredths of an amp (A * 100)
             unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H2
             value_template = POWER_VALUE_TEMPLATE_H2
@@ -227,7 +232,14 @@ class MQTTManager:
 
             # Power topic
             hub_version = parts[1]
-            sid = parts[2]
+
+            # V1 labels: efergy_h1_v1.0.1_MACADDR (4 parts, SID is parts[3])
+            # V2/V3 labels: efergy_h2_SID or efergy_h3_SID (3 parts, SID is parts[2])
+            if hub_version == "h1" and len(parts) >= 4:
+                sid = parts[3]  # MAC address for V1
+            else:
+                sid = parts[2]  # Sensor ID for V2/V3
+
             power_topic = get_topic(label, sensor_type="power")
             self.publish_power_discovery(label, sid, power_topic, hub_version)
 
