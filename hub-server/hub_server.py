@@ -58,15 +58,19 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
         query = parse_qs(parsed_url.query)
         client_ip, client_port = self.client_address
 
-        logging.debug(f"Request: {self.command} {self.path}")
-        logging.debug(f"Query params: {query}")
-        logging.debug(f"Headers: {dict(self.headers)}")
-        logging.debug(f"Client: {client_ip}:{client_port}")
+        logging.debug("=" * 80)
+        logging.debug(f">>> REQUEST: {self.command} {self.path}")
+        logging.debug(f">>> Query params: {query}")
+        logging.debug(f">>> Headers: {dict(self.headers)}")
+        logging.debug(f">>> Client: {client_ip}:{client_port}")
 
 
     def _send_response(self, code: int, content_bytes: bytes, content_type: str = "text/html; charset=UTF-8"):
         """Helper to send a complete response."""
         try:
+            response_preview = content_bytes.decode('utf-8', 'ignore')[:200] if content_bytes else ''
+            logging.debug(f"<<< RESPONSE: {code} | Length: {len(content_bytes)} | Content: {response_preview!r}")
+
             self.send_response(code)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(content_bytes)))
@@ -126,7 +130,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 return
 
             post_data_bytes = self.rfile.read(content_length)
-            logging.debug(f"POST body: {post_data_bytes.decode('utf-8', 'ignore')}")
+            logging.debug(f">>> POST body: {post_data_bytes.decode('utf-8', 'ignore')}")
 
             db = getattr(self.server, "database", None)
             if not db:
