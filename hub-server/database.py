@@ -18,6 +18,12 @@ class Database:
             db_path: The file path to the sqlite database.
         """
         self.db_path = Path(db_path)
+
+        # Ensure parent directory exists
+        if not self.db_path.parent.exists():
+            logging.info(f"Creating database directory: {self.db_path.parent}")
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
         self.label_cache: Dict[str, int] = {}
         self._aggregator_stop = threading.Event()
         self._aggregator_thread = None
@@ -28,6 +34,13 @@ class Database:
         """
         Sets up the database, creating tables and indices if they don't exist.
         """
+        db_exists = self.db_path.exists()
+
+        if not db_exists:
+            logging.info(f"Creating new database: {self.db_path}")
+        else:
+            logging.debug(f"Using existing database: {self.db_path}")
+
         logging.debug("Setting up database tables and indices...")
 
         with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
