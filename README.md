@@ -1,6 +1,6 @@
 # Efergy Hub Local Data Logger
 
-This project provides a local emulation server for legacy Efergy Engage hubs (v2 and v3). 
+This project provides a local emulation server for legacy Efergy Engage hubs (v1, v2, and v3). 
 It allows you to intercept and log your home's energy data to a local SQLite database, completely bypassing the 
 decommissioned Efergy cloud servers.
 
@@ -49,36 +49,62 @@ This will:
 * Build the `hub-server` image from its Dockerfile.
 * Build the `legacy-nginx` image from its Dockerfile.
 * Start both containers. The `legacy-nginx` service is exposed on port `443`.
-* Mount the `readings.db` file from the project root into the `hub-server` container.
+* Automatically create the SQLite database on first run and mount the data directory for persistence.
 
 ### 3. Redirect the Efergy Hub
 
 Finally, you must trick your Efergy Hub into sending data to your new server instead of `sensornet.info`.
 The easiest way to do this is with DNS spoofing on your router (e.g., using `dnsmasq`, `Pi-hole`, or similar):
 
-Create a DNS entry that maps `sensornet.info` to the local IP address of the machine running your Docker container 
+Create DNS entries that map your hub's specific domain(s) to the local IP address of the machine running your Docker container 
 (e.g., `10.0.0.213`).
+
+**Domain patterns by hub version:**
+- **V1 hubs:** `[MAC].sensornet.info` and `[MAC].keys.sensornet.info` (e.g., `aa.bb.cc.dddddd.sensornet.info`)
+- **V2/V3 hubs:** `[MAC].[h2/h3].sensornet.info` (e.g., `41.0a.04.001ec0.h2.sensornet.info`)
 
 Once the hub is rebooted, it will contact `sensornet.info`, be directed to your `legacy-nginx` proxy, and your 
 `hub-server` should start logging data to `readings.db`.
 
 #### Pi-hole example
 
-Navigate to Settings -> Local DNS Records and add the following:
+Navigate to Settings -> Local DNS Records and add entries for your hub:
+
+**For v2/v3 hubs:**
 
 | Domain                              | IP          |
 |-------------------------------------|-------------|
 | [device mac].[h2/h3].sensornet.info | [server ip] |
 | 41.0a.04.001ec0.h2.sensornet.info   | 10.0.0.213  |
 
+**For v1 hubs:**
+
+| Domain                              | IP          |
+|-------------------------------------|-------------|
+| [device mac].sensornet.info         | [server ip] |
+| [device mac].keys.sensornet.info    | [server ip] |
+| aa.bb.cc.dddddd.sensornet.info      | 10.0.0.213  |
+| aa.bb.cc.dddddd.keys.sensornet.info | 10.0.0.213  |
+
 #### pfSense example
 
-Navigate to Services -> DNS Resolver -> Custom Options and add the following:
+Navigate to Services -> DNS Resolver -> Custom Options and add entries for your hub:
 
+**For all hubs (wildcard approach):**
 ```
 server:
     local-zone: "sensornet.info" redirect
     local-data: "sensornet.info 86400 IN A 10.0.0.213"
+```
+
+**Or for specific domains:**
+```
+server:
+    # V2/V3 hubs
+    local-data: "41.0a.04.001ec0.h2.sensornet.info 86400 IN A 10.0.0.213"
+    # V1 hubs
+    local-data: "aa.bb.cc.dddddd.sensornet.info 86400 IN A 10.0.0.213"
+    local-data: "aa.bb.cc.dddddd.keys.sensornet.info 86400 IN A 10.0.0.213"
 ``` 
 
 ## Home Assistant Integration
