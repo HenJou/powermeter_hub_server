@@ -4,6 +4,7 @@ A fake Efergy sensor data server, updated for Python 3.
 This server emulates the sensornet.info API endpoints for an
 Efergy hub, logging incoming sensor data to a sqlite database.
 """
+import json
 import logging
 import socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -95,6 +96,9 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
 
             if parsed_url.path == "/get_key.html":
                 content_bytes = b"TT|a1bCDEFGHa1zZ\n"
+            # TO_CONFIRM: Just a pure guess that "E1" refers to the hub v1 type (?)
+            elif parsed_url.path == "/check_key.html" and "E1" in parse_qs(parsed_url.query).get("p", []):
+                content_bytes = b"success"
             elif parsed_url.path == "/check_key.html":
                 content_bytes = b"\n"
             else:
@@ -137,10 +141,20 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
             elif parsed_url.path in ["/h2", "/h3"]:
                 hub_version = parsed_url.path.strip("/")
                 self.process_sensor_data(post_data_bytes, hub_version, db)
+            elif parsed_url.path == '/recjson':
+                # v1 hub sends URL-encoded form data: json=<pipe-delimited-data>
+                hub_version = 'HH-1.0-NA'
+                decoded_body = post_data_bytes.decode('utf-8', 'ignore')
+                if decoded_body.startswith('json='):
+                    # Extract the actual sensor data
+                    sensor_data = decoded_body[5:]  # Skip 'json='
+                    self.process_sensor_data(sensor_data.encode('utf-8'), hub_version, db)
+                else:
+                    logging.warning(f"Unexpected /recjson body format: {decoded_body[:100]}")
             else:
                 logging.warning(f"Unknown POST path or content-type: {self.path} / {content_type}")
 
-            self._send_response(200, b"")
+            self._send_response(200, b"success" if parsed_url.path == '/recjson' else b"")
 
         except Exception as e:
             logging.error(f"Exception in POST: {e}")
@@ -202,12 +216,30 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                     # Skip normal processing for EFMS1
                     continue
 
-                # --- Normal CT sensor processing ---
-                port_and_value = data[3]
-                value_str = port_and_value.split(",")[1]
-                value = float(value_str)
+                if hub_version == 'HH-1.0-NA':
+                    # Tom's processing for V1 hub.
+                    # sensor_lines = 'json=<hub MAC address>|<8-digit number>|v1.0.1|{"data":[[548338,"mA","E1",14768,0,0,65535]]}|<32-digit hex value>'
 
-                label = f"efergy_{hub_version}_{sid}"
+                    # Actual version (e.g. "v1.0.1")
+                    actual_version = data[2] if data[2].startswith('v') else 'v1'
+                    # MAC address == sensor ID
+                    sid = data[0]
+                    jdata = json.loads(data[3])
+                    milliamps = float(jdata['data'][0][3])
+                    # V1: *Milliamps* values, converted to watts here
+                    watts = MAINS_VOLTAGE * milliamps / 1000 * POWER_FACTOR
+                    value = round(watts, 3)
+                    # Override hub_version for label naming
+                    label = f"efergy_h1_{actual_version}_{sid}"
+                else:
+                    # --- Normal CT sensor processing for v2/v3 ---
+                    # V2: *Raw sensor* values, converted to watts during aggregation
+                    # V3: *Pre-scaled* values, converted to watts during aggregation
+                    port_and_value = data[3]
+                    value_str = port_and_value.split(",")[1]
+                    value = float(value_str)
+                    sid = data[0]
+                    label = f"efergy_{hub_version}_{sid}"
 
                 logging.debug(f"Logging sensor: {label}, raw: {value}")
                 database.log_data(label, value)
@@ -269,7 +301,7 @@ if __name__ == '__main__':
     logging_level = getattr(logging, LOG_LEVEL, logging.INFO)
     logging.basicConfig(
         level=logging_level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
+        format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
     )
 
     # Adjust this path as needed for your project structure

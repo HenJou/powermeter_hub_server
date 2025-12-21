@@ -214,6 +214,8 @@ class Database:
         cursor.execute("""
             SELECT timestamp,
                    CASE
+                       WHEN labels.label LIKE 'efergy_h1%%'
+                           THEN readings.value / 1000.0
                        WHEN labels.label LIKE 'efergy_h2%%'
                            THEN ((readings.value / 100.0) * 230 * 0.6) / 10000.0
                        WHEN labels.label LIKE 'efergy_h3%%'
