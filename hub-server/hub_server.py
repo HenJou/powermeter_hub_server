@@ -100,11 +100,19 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
 
             if parsed_url.path == "/get_key.html":
                 content_bytes = b"TT|a1bCDEFGHa1zZ\n"
-            # TO_CONFIRM: Just a pure guess that "E1" refers to the hub v1 type (?)
-            elif parsed_url.path == "/check_key.html" and "E1" in parse_qs(parsed_url.query).get("p", []):
-                content_bytes = b"success"
             elif parsed_url.path == "/check_key.html":
-                content_bytes = b"\n"
+                # Detect V1 hub by Host header pattern: [MAC].keys.sensornet.info
+                # V2/V3 use: [MAC].[h2/h3].sensornet.info
+                host_header = self.headers.get("Host", "")
+
+                is_v1_hub = ".keys." in host_header
+
+                if is_v1_hub:
+                    content_bytes = b"success"
+                    logging.debug(f"[V1] Key check from: {host_header}")
+                else:
+                    content_bytes = b"\n"
+                    logging.debug(f"[V2/V3] Key check from: {host_header}")
             else:
                 code = 404
                 content_bytes = b"Not Found"
