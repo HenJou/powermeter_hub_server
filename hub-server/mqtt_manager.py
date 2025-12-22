@@ -135,7 +135,7 @@ class MQTTManager:
             "state_topic": topic,
             "unit_of_measurement": unit_of_measurement,
             "value_template": value_template,
-            "unique_id": label,
+            "unique_id": f"{label}_power",
             "icon": POWER_ICON,
             "device_class": POWER_DEVICE_CLASS,
             "state_class": POWER_STATE_CLASS,
@@ -231,14 +231,13 @@ class MQTTManager:
                 continue
 
             # Power topic
-            hub_version = parts[1]
 
-            # V1 labels: efergy_h1_v1.0.1_MACADDR (4 parts, SID is parts[3])
-            # V2/V3 labels: efergy_h2_SID or efergy_h3_SID (3 parts, SID is parts[2])
-            if hub_version == "h1" and len(parts) >= 4:
-                sid = parts[3]  # MAC address for V1
-            else:
-                sid = parts[2]  # Sensor ID for V2/V3
+            # Label format for all versions: efergy_hX_SID
+            # V1: efergy_h1_0004A34DAF3C (SID is MAC address)
+            # V2: efergy_h2_123456 (SID is sensor ID)
+            # V3: efergy_h3_123456 (SID is sensor ID)
+            hub_version = parts[1]
+            sid = parts[2]
 
             power_topic = get_topic(label, sensor_type="power")
             self.publish_power_discovery(label, sid, power_topic, hub_version)

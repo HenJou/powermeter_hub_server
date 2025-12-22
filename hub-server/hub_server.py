@@ -155,7 +155,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 self.process_sensor_data(post_data_bytes, hub_version, db)
             elif parsed_url.path == '/recjson':
                 # v1 hub sends URL-encoded form data: json=<pipe-delimited-data>
-                hub_version = 'HH-1.0-NA'
+                hub_version = 'h1'
                 decoded_body = post_data_bytes.decode('utf-8', 'ignore')
                 if decoded_body.startswith('json='):
                     # Extract the actual sensor data
@@ -228,21 +228,18 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                     # Skip normal processing for EFMS1
                     continue
 
-                if hub_version == 'HH-1.0-NA':
-                    # Tom's processing for V1 hub.
-                    # sensor_lines = 'json=<hub MAC address>|<8-digit number>|v1.0.1|{"data":[[548338,"mA","E1",14768,0,0,65535]]}|<32-digit hex value>'
+                if hub_version == 'h1':
+                    # V1 hub processing
+                    # Data format: MAC|counter|v1.0.1|{"data":[[sensor_id,"mA","E1",milliamps,0,0,65535]]}|hash
 
-                    # Actual version (e.g. "v1.0.1")
-                    actual_version = data[2] if data[2].startswith('v') else 'v1'
-                    # MAC address == sensor ID
+                    # MAC address = sensor ID for V1
                     sid = data[0]
                     jdata = json.loads(data[3])
                     milliamps = float(jdata['data'][0][3])
                     # V1: *Milliamps* values, converted to watts here
                     watts = MAINS_VOLTAGE * milliamps / 1000 * POWER_FACTOR
                     value = round(watts, 3)
-                    # Override hub_version for label naming
-                    label = f"efergy_h1_{actual_version}_{sid}"
+                    label = f"efergy_{hub_version}_{sid}"
                 else:
                     # --- Normal CT sensor processing for v2/v3 ---
                     # V2: *Raw sensor* values, converted to watts during aggregation
