@@ -25,20 +25,20 @@ MQTT_BASE_TOPIC = os.getenv("MQTT_BASE_TOPIC", "home/efergy")
 HA_DISCOVERY = os.getenv("HA_DISCOVERY", "false").lower() in ("true", "1", "yes", "on")
 HA_DISCOVERY_PREFIX = os.getenv("HA_DISCOVERY_PREFIX", "homeassistant")
 
-POWER_NAME = os.getenv("POWER_NAME", "Live power usage")
+POWER_NAME = os.getenv("POWER_NAME", "Power")
 POWER_ICON = os.getenv("POWER_ICON", "mdi:flash")
 POWER_DEVICE_CLASS = os.getenv("POWER_DEVICE_CLASS", "power")
 POWER_STATE_CLASS = os.getenv("POWER_STATE_CLASS", "measurement")
 
-POWER_VALUE_TEMPLATE_H1 = os.getenv("POWER_VALUE_TEMPLATE_H1", "{{ (value_json.value | float) / 1000 }}")
-POWER_UNIT_OF_MEASUREMENT_H1 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H1", "kW")
+POWER_VALUE_TEMPLATE_H1 = os.getenv("POWER_VALUE_TEMPLATE_H1", "{{ value_json.value | float }}")
+POWER_UNIT_OF_MEASUREMENT_H1 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H1", "W")
 
-POWER_VALUE_TEMPLATE_H2_RAW = os.getenv("POWER_VALUE_TEMPLATE_H2_RAW", "{{ ((value_json.value | float / 100) * __MAINS_VOLTAGE__ * __POWER_FACTOR__) / 10000 }}")
+POWER_VALUE_TEMPLATE_H2_RAW = os.getenv("POWER_VALUE_TEMPLATE_H2_RAW", "{{ ((value_json.value | float) / 100) * __MAINS_VOLTAGE__ * __POWER_FACTOR__ }}")
 POWER_VALUE_TEMPLATE_H2 = POWER_VALUE_TEMPLATE_H2_RAW.replace("__MAINS_VOLTAGE__", str(MAINS_VOLTAGE)).replace("__POWER_FACTOR__", str(POWER_FACTOR))
-POWER_UNIT_OF_MEASUREMENT_H2 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H2", "kW")
+POWER_UNIT_OF_MEASUREMENT_H2 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H2", "W")
 
-POWER_VALUE_TEMPLATE_H3 = os.getenv("POWER_VALUE_TEMPLATE_H3", "{{ (value_json.value | float / 10) / 1000 }}")
-POWER_UNIT_OF_MEASUREMENT_H3 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H3", "kW")
+POWER_VALUE_TEMPLATE_H3 = os.getenv("POWER_VALUE_TEMPLATE_H3", "{{ (value_json.value | float) / 10 }}")
+POWER_UNIT_OF_MEASUREMENT_H3 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H3", "W")
 
 ENERGY_NAME = os.getenv("ENERGY_NAME", "Energy consumption")
 ENERGY_ICON = os.getenv("ENERGY_ICON", "mdi:lightning-bolt")
