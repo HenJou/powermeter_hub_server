@@ -30,7 +30,11 @@ POWER_ICON = os.getenv("POWER_ICON", "mdi:flash")
 POWER_DEVICE_CLASS = os.getenv("POWER_DEVICE_CLASS", "power")
 POWER_STATE_CLASS = os.getenv("POWER_STATE_CLASS", "measurement")
 
-POWER_VALUE_TEMPLATE_H1 = os.getenv("POWER_VALUE_TEMPLATE_H1", "{{ value_json.value | float }}")
+# Formulas
+# AC single phase milliamps to watts calculation P(W) = (PF × V(V) × I(mA)) / 1000
+
+POWER_VALUE_TEMPLATE_H1_RAW = os.getenv("POWER_VALUE_TEMPLATE_H1_RAW", "{{ (__POWER_FACTOR__ * __MAINS_VOLTAGE__ * (value_json.value | float)) / 1000 }}")
+POWER_VALUE_TEMPLATE_H1 = POWER_VALUE_TEMPLATE_H1_RAW.replace("__MAINS_VOLTAGE__", str(MAINS_VOLTAGE)).replace("__POWER_FACTOR__", str(POWER_FACTOR))
 POWER_UNIT_OF_MEASUREMENT_H1 = os.getenv("POWER_UNIT_OF_MEASUREMENT_H1", "W")
 
 POWER_VALUE_TEMPLATE_H2_RAW = os.getenv("POWER_VALUE_TEMPLATE_H2_RAW", "{{ (__POWER_FACTOR__ * __MAINS_VOLTAGE__ * (value_json.value | float)) / 1000 }}")
