@@ -219,21 +219,18 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                     continue
 
                 if hub_version == 'h1':
-                    # V1 hub processing
+                    # V1: *Raw sensor* values, converted to kilowatts during aggregation
                     # Data format: MAC|counter|v1.0.1|{"data":[[sensor_id,"mA","E1",milliamps,0,0,65535]]}|hash
 
                     # MAC address = sensor ID for V1
                     sid = data[0]
                     jdata = json.loads(data[3])
-                    milliamps = float(jdata['data'][0][3])
-                    # V1: *Milliamps* values, converted to watts here
-                    watts = MAINS_VOLTAGE * milliamps / 1000 * POWER_FACTOR
-                    value = round(watts, 3)
+                    value = float(jdata['data'][0][3])
                     label = f"efergy_{hub_version}_{sid}"
                 else:
                     # --- Normal CT sensor processing for v2/v3 ---
-                    # V2: *Raw sensor* values, converted to watts during aggregation
-                    # V3: *Pre-scaled* values, converted to watts during aggregation
+                    # V2: *Raw sensor* values, converted to kilowatts during aggregation
+                    # V3: *Pre-scaled* values, converted to kilowatts during aggregation
                     port_and_value = data[3]
                     value_str = port_and_value.split(",")[1]
                     value = float(value_str)
