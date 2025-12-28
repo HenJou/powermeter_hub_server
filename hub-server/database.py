@@ -2,10 +2,11 @@ import logging
 import threading
 import time
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Union
 from config import (
-    SQLITE_TIMEOUT, POWER_FACTOR, MAINS_VOLTAGE
+    SQLITE_TIMEOUT, POWER_FACTOR, MAINS_VOLTAGE, ENERGY_MONTHLY_RESET
 )
 
 
@@ -180,15 +181,80 @@ class Database:
 
 
     def get_total_energy(self) -> float:
+        """
+        Return the sum of energy.
+        If ENERGY_MONTHLY_RESET is True, it returns the sum for the current month only.
+        Otherwise, it returns the absolute total energy.
+        """
         try:
+            query = "SELECT SUM(kwh) FROM energy_hourly"
+            params = ()
+
+            if ENERGY_MONTHLY_RESET:
+                # Calculate start of current month
+                now = datetime.now()
+                first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                month_start_ts = int(first_day_of_month.timestamp())
+                query += " WHERE hour_start >= ?"
+                params = (month_start_ts,)
+
             with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT SUM(kwh) FROM energy_hourly")
+                cursor.execute(query, params)
                 row = cursor.fetchone()
                 return float(row[0]) if row and row[0] else 0.0
         except Exception as e:
             logging.error(f"Failed to compute total energy: {e}")
             return 0.0
+
+
+    def truncate_old_data(self, months: int) -> int:
+        """
+        Truncates data older than the specified number of months.
+        Deletes from 'readings' and 'energy_hourly'.
+
+        Args:
+            months: Number of months of history to keep.
+
+        Returns:
+            Number of rows deleted (total).
+        """
+        if months <= 0:
+            return 0
+
+        try:
+            now = datetime.now()
+            year, month = divmod(now.month - months - 1, 12)
+            month += 1
+            year = now.year + year
+
+            cutoff_date = now.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+            cutoff_ts = int(cutoff_date.timestamp())
+
+            deleted_count = 0
+            with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+                cursor = conn.cursor()
+                
+                # Delete from readings
+                cursor.execute("DELETE FROM readings WHERE timestamp < ?", (cutoff_ts,))
+                deleted_count += cursor.rowcount
+                
+                # Delete from energy_hourly
+                cursor.execute("DELETE FROM energy_hourly WHERE hour_start < ?", (cutoff_ts,))
+                deleted_count += cursor.rowcount
+                
+                conn.commit()
+
+                # Reclaim space
+                cursor.execute("VACUUM")
+                
+            if deleted_count > 0:
+                logging.info(f"Truncated {deleted_count} old records (older than {cutoff_date.strftime('%Y-%m-%d')})")
+            
+            return deleted_count
+        except Exception as e:
+            logging.error(f"Failed to truncate old data: {e}")
+            return 0
 
 
     # ---------------- Aggregation logic ----------------
@@ -218,6 +284,7 @@ class Database:
             return first_hour
 
         return last_hour_done + 3600
+
 
     def aggregate_one_hour(self, cursor: sqlite3.Cursor, hour_start: int) -> Optional[float]:
         """

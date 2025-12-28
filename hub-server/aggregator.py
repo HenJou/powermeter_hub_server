@@ -1,7 +1,9 @@
 import logging
 import threading
+import time
 from database import Database
 from mqtt_manager import MQTTManager
+from config import HISTORY_RETENTION_MONTHS
 
 
 class Aggregator:
@@ -11,6 +13,7 @@ class Aggregator:
         self.interval_sec = interval_sec
         self._stop_event = threading.Event()
         self._thread = None
+        self._last_truncation_ts = 0
 
 
     def aggregate_loop(self):
@@ -21,6 +24,13 @@ class Aggregator:
         """
         while not self._stop_event.is_set():
             try:
+                # Perform history truncation check once per day
+                if HISTORY_RETENTION_MONTHS > 0:
+                    now = time.time()
+                    if now - self._last_truncation_ts >= 86400:
+                        self.database.truncate_old_data(HISTORY_RETENTION_MONTHS)
+                        self._last_truncation_ts = now
+
                 processed = self.database.aggregate_hours(limit_hours=1000)
                 logging.debug(f"Aggregator processed {processed} hours")
 
