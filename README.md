@@ -192,4 +192,4 @@ You will now have two sensors:
 
 ## Efergy Data Format
 
-Documentation about the known data formats is within the [Wiki](https://github.com/DevOldSchool/powermeter_hub_server/wiki/Efergy-Data-Format).
+Documentation about the known data formats is within the [Wiki](https://github.com/DevOldSchool/powermeter_hub_server/wiki/Hub-v2-v3-Data-Format).
