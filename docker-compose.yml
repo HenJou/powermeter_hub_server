@@ -6,7 +6,7 @@ services:
     expose:
       - "5000"
     volumes:
-      - ./hub-server/data/readings.db:/app/data/readings.db:rw
+      - ./hub-server/data:/app/data:rw
     environment:
       TZ: Australia/Brisbane
       # Logging

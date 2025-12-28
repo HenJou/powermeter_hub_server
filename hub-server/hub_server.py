@@ -4,6 +4,7 @@ A fake Efergy sensor data server, updated for Python 3.
 This server emulates the sensornet.info API endpoints for an
 Efergy hub, logging incoming sensor data to a sqlite database.
 """
+import json
 import logging
 import socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -14,11 +15,8 @@ from database import Database
 from mqtt_manager import MQTTManager
 from aggregator import Aggregator
 from config import (
-    SERVER_PORT, LOG_LEVEL
+    SERVER_PORT, LOG_LEVEL, POWER_FACTOR, MAINS_VOLTAGE
 )
-
-POWER_FACTOR = 0.6
-MAINS_VOLTAGE = 230
 
 class EfergyHTTPServer(HTTPServer):
     """
@@ -57,15 +55,19 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
         query = parse_qs(parsed_url.query)
         client_ip, client_port = self.client_address
 
-        logging.debug(f"Request: {self.command} {self.path}")
-        logging.debug(f"Query params: {query}")
-        logging.debug(f"Headers: {dict(self.headers)}")
-        logging.debug(f"Client: {client_ip}:{client_port}")
+        logging.debug("=" * 80)
+        logging.debug(f">>> REQUEST: {self.command} {self.path}")
+        logging.debug(f">>> Query params: {query}")
+        logging.debug(f">>> Headers: {dict(self.headers)}")
+        logging.debug(f">>> Client: {client_ip}:{client_port}")
 
 
     def _send_response(self, code: int, content_bytes: bytes, content_type: str = "text/html; charset=UTF-8"):
         """Helper to send a complete response."""
         try:
+            response_preview = content_bytes.decode('utf-8', 'ignore')[:200] if content_bytes else ''
+            logging.debug(f"<<< RESPONSE: {code} | Length: {len(content_bytes)} | Content: {response_preview!r}")
+
             self.send_response(code)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(content_bytes)))
@@ -96,7 +98,11 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
             if parsed_url.path == "/get_key.html":
                 content_bytes = b"TT|a1bCDEFGHa1zZ\n"
             elif parsed_url.path == "/check_key.html":
-                content_bytes = b"\n"
+                # Detect V1 hub by Host header pattern: [MAC].keys.sensornet.info
+                # V2/V3 use: [MAC].[h2/h3].sensornet.info
+                host_header = self.headers.get("Host", "")
+                content_bytes = b"success"
+                logging.debug(f"Key check from: {host_header}")
             else:
                 code = 404
                 content_bytes = b"Not Found"
@@ -122,7 +128,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 return
 
             post_data_bytes = self.rfile.read(content_length)
-            logging.debug(f"POST body: {post_data_bytes.decode('utf-8', 'ignore')}")
+            logging.debug(f">>> POST body: {post_data_bytes.decode('utf-8', 'ignore')}")
 
             db = getattr(self.server, "database", None)
             if not db:
@@ -137,10 +143,20 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
             elif parsed_url.path in ["/h2", "/h3"]:
                 hub_version = parsed_url.path.strip("/")
                 self.process_sensor_data(post_data_bytes, hub_version, db)
+            elif parsed_url.path == '/recjson':
+                # v1 hub sends URL-encoded form data: json=<pipe-delimited-data>
+                hub_version = 'h1'
+                decoded_body = post_data_bytes.decode('utf-8', 'ignore')
+                if decoded_body.startswith('json='):
+                    # Extract the actual sensor data
+                    sensor_data = decoded_body[5:]  # Skip 'json='
+                    self.process_sensor_data(sensor_data.encode('utf-8'), hub_version, db)
+                else:
+                    logging.warning(f"Unexpected /recjson body format: {decoded_body[:100]}")
             else:
                 logging.warning(f"Unknown POST path or content-type: {self.path} / {content_type}")
 
-            self._send_response(200, b"")
+            self._send_response(200, b"success")
 
         except Exception as e:
             logging.error(f"Exception in POST: {e}")
@@ -202,12 +218,24 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                     # Skip normal processing for EFMS1
                     continue
 
-                # --- Normal CT sensor processing ---
-                port_and_value = data[3]
-                value_str = port_and_value.split(",")[1]
-                value = float(value_str)
+                if hub_version == 'h1':
+                    # V1: *Raw sensor* values, converted to kilowatts during aggregation
+                    # Data format: MAC|counter|v1.0.1|{"data":[[sensor_id,"mA","E1",milliamps,0,0,65535]]}|hash
 
-                label = f"efergy_{hub_version}_{sid}"
+                    # MAC address = sensor ID for V1
+                    sid = data[0]
+                    jdata = json.loads(data[3])
+                    value = float(jdata['data'][0][3])
+                    label = f"efergy_{hub_version}_{sid}"
+                else:
+                    # --- Normal CT sensor processing for v2/v3 ---
+                    # V2: *Raw sensor* values, converted to kilowatts during aggregation
+                    # V3: *Pre-scaled* values, converted to kilowatts during aggregation
+                    port_and_value = data[3]
+                    value_str = port_and_value.split(",")[1]
+                    value = float(value_str)
+                    sid = data[0]
+                    label = f"efergy_{hub_version}_{sid}"
 
                 logging.debug(f"Logging sensor: {label}, raw: {value}")
                 database.log_data(label, value)
@@ -269,7 +297,7 @@ if __name__ == '__main__':
     logging_level = getattr(logging, LOG_LEVEL, logging.INFO)
     logging.basicConfig(
         level=logging_level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
+        format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
     )
 
     # Adjust this path as needed for your project structure

@@ -1,1 +1,23 @@
+# IDE
 .idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+readings.db*
+
+# Docker volumes
+hub-server/data/*.db
+hub-server/data/*.db-*
+
+# Logs
+*.log

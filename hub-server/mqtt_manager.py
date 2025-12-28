@@ -6,6 +6,7 @@ from config import (
     MQTT_ENABLED, MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS,
     MQTT_BASE_TOPIC, HA_DISCOVERY, HA_DISCOVERY_PREFIX,
     POWER_NAME, POWER_ICON, POWER_DEVICE_CLASS, POWER_STATE_CLASS,
+    POWER_UNIT_OF_MEASUREMENT_H1, POWER_VALUE_TEMPLATE_H1,
     POWER_UNIT_OF_MEASUREMENT_H2, POWER_VALUE_TEMPLATE_H2,
     POWER_UNIT_OF_MEASUREMENT_H3, POWER_VALUE_TEMPLATE_H3,
     ENERGY_NAME, ENERGY_ICON, ENERGY_DEVICE_CLASS, ENERGY_STATE_CLASS,
@@ -102,7 +103,9 @@ class MQTTManager:
             return
 
         try:
-            self.client.publish(topic, json.dumps(payload), retain=retain)
+            json_payload = json.dumps(payload)
+            self.client.publish(topic, json_payload, retain=retain)
+            logging.debug(f"MQTT published to {topic}: {json_payload[:400]}")
         except Exception as e:
             logging.error(f"MQTT publish failed: {topic} — {e}")
 
@@ -113,7 +116,11 @@ class MQTTManager:
 
         config_topic = f"{HA_DISCOVERY_PREFIX}/sensor/{label}/config"
 
-        if hub_version == "h2":
+        if hub_version == "h1" or hub_version.startswith("v1"):
+            # V1 hub: value is already in watts, convert to kW
+            unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H1
+            value_template = POWER_VALUE_TEMPLATE_H1
+        elif hub_version == "h2":
             # value is in hundredths of an amp (A * 100)
             unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H2
             value_template = POWER_VALUE_TEMPLATE_H2
@@ -130,7 +137,7 @@ class MQTTManager:
             "state_topic": topic,
             "unit_of_measurement": unit_of_measurement,
             "value_template": value_template,
-            "unique_id": label,
+            "unique_id": f"{label}_power",
             "icon": POWER_ICON,
             "device_class": POWER_DEVICE_CLASS,
             "state_class": POWER_STATE_CLASS,
@@ -226,8 +233,14 @@ class MQTTManager:
                 continue
 
             # Power topic
+
+            # Label format for all versions: efergy_hX_SID
+            # V1: efergy_h1_0004A34DAF3C (SID is MAC address)
+            # V2: efergy_h2_123456 (SID is sensor ID)
+            # V3: efergy_h3_123456 (SID is sensor ID)
             hub_version = parts[1]
             sid = parts[2]
+
             power_topic = get_topic(label, sensor_type="power")
             self.publish_power_discovery(label, sid, power_topic, hub_version)
 
