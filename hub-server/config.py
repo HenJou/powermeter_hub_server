@@ -52,6 +52,11 @@ ENERGY_STATE_CLASS = os.getenv("ENERGY_STATE_CLASS", "total_increasing")
 ENERGY_VALUE_TEMPLATE = os.getenv("ENERGY_VALUE_TEMPLATE", "{{ value_json.value }}")
 ENERGY_UNIT_OF_MEASUREMENT = os.getenv("ENERGY_UNIT_OF_MEASUREMENT", "kWh")
 
+ENERGY_MONTHLY_RESET = os.getenv("ENERGY_MONTHLY_RESET", "false").lower() in ("true", "1", "yes", "on")
+
+# History retention in months (0 means keep everything)
+HISTORY_RETENTION_MONTHS = int(os.getenv("HISTORY_RETENTION_MONTHS", "0"))
+
 DEVICE_NAME = os.getenv("DEVICE_NAME", "Efergy Hub")
 DEVICE_IDENTIFIERS = os.getenv("DEVICE_IDENTIFIERS", ["efergy"])
 DEVICE_MANUFACTURER = os.getenv("DEVICE_MANUFACTURER", "Efergy")

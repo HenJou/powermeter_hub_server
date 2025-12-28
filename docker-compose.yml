@@ -11,14 +11,18 @@ services:
       TZ: Australia/Brisbane
       # Logging
       LOG_LEVEL: INFO
+      # How many months of readings and aggregated values to keep, 0 = keep everything
+      HISTORY_RETENTION_MONTHS: 0
       # MQTT
       MQTT_ENABLED: true
       MQTT_BROKER: homeassistant.local
       MQTT_PORT: 1883
       MQTT_USER: mqtt-broker-username-here
       MQTT_PASS: your-password-here
-      # Home Assistant Discovery
+      # Home Assistant
       HA_DISCOVERY: true
+      # Setting to true will reset the cumulative energy value each month
+      ENERGY_MONTHLY_RESET: false
 
   legacy-nginx:
 #    build: ./legacy-nginx
