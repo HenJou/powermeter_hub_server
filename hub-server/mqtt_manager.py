@@ -105,7 +105,7 @@ class MQTTManager:
         try:
             json_payload = json.dumps(payload)
             self.client.publish(topic, json_payload, retain=retain)
-            logging.debug(f"MQTT published to {topic}: {json_payload[:200]}")
+            logging.debug(f"MQTT published to {topic}: {json_payload[:400]}")
         except Exception as e:
             logging.error(f"MQTT publish failed: {topic} — {e}")
 
