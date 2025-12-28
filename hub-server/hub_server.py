@@ -4,7 +4,6 @@ A fake Efergy sensor data server, updated for Python 3.
 This server emulates the sensornet.info API endpoints for an
 Efergy hub, logging incoming sensor data to a sqlite database.
 """
-import json
 import logging
 import socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -14,8 +13,9 @@ from pathlib import Path
 from database import Database
 from mqtt_manager import MQTTManager
 from aggregator import Aggregator
+from payload_parser import parse_sensor_payload
 from config import (
-    SERVER_PORT, LOG_LEVEL, POWER_FACTOR, MAINS_VOLTAGE
+    SERVER_PORT, LOG_LEVEL
 )
 
 class EfergyHTTPServer(HTTPServer):
@@ -166,87 +166,30 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
 
     def process_sensor_data(self, post_data_bytes: bytes, hub_version: str, database: Database):
         """Parses and logs sensor data from the POST body."""
-        try:
-            http_data_str = post_data_bytes.decode("utf-8")
-            sensor_lines = http_data_str.split("\r\n")
-        except UnicodeDecodeError as e:
-            logging.error(f"Failed to decode POST body: {e}")
-            return
+        parsed_results = parse_sensor_payload(post_data_bytes, hub_version)
 
-        for line in sensor_lines:
-            if not line:  # Skip empty lines
-                continue
-
+        for data in parsed_results:
             try:
-                data = line.split("|")
-                if len(data) < 4:
-                    logging.warning(f"Malformed line, skipping: '{line}'")
-                    continue
-
-                sid = data[0]
-                if sid == "0":  # Skip hub status lines
-                    continue
-
-                data_type = data[2].upper()
-
-                # --- EFMS1 Multi-sensor debug logging ---
-                if data_type.startswith("EFMS"):
-                    raw_block = data[3]  # Example: "M,64.00&T,0.00&L,0.00"
-                    rssi_val = None
-
-                    # Some packets include RSSI after an additional pipe
-                    if len(data) >= 5:
-                        try:
-                            rssi_val = float(data[4])
-                        except ValueError:
-                            pass
-
-                    # Split metrics by "&" and log
-                    metrics = raw_block.split("&")
-                    for metric in metrics:
-                        try:
-                            key, val = metric.split(",", 1)
-                            key = key.strip().upper()
-                            num = float(val)
-                            logging.debug(f"[EFMS1] SID={sid}, Metric={key}, Value={num}")
-                        except Exception as e:
-                            logging.warning(f"[EFMS1] Failed to parse metric '{metric}': {e}")
-
-                    if rssi_val is not None:
-                        logging.debug(f"[EFMS1] SID={sid}, RSSI={rssi_val}")
-
-                    # Skip normal processing for EFMS1
-                    continue
-
-                if hub_version == 'h1':
-                    # V1: *Raw sensor* values, converted to kilowatts during aggregation
-                    # Data format: MAC|counter|v1.0.1|{"data":[[sensor_id,"mA","E1",milliamps,0,0,65535]]}|hash
-
-                    # MAC address = sensor ID for V1
-                    sid = data[0]
-                    jdata = json.loads(data[3])
-                    value = float(jdata['data'][0][3])
-                    label = f"efergy_{hub_version}_{sid}"
+                if data["type"] == "EFMS":
+                    sid = data["sid"]
+                    for key, num in data["metrics"]:
+                        logging.debug(f"[EFMS1] SID={sid}, Metric={key}, Value={num}")
+                    
+                    if data["rssi"] is not None:
+                        logging.debug(f"[EFMS1] SID={sid}, RSSI={data['rssi']}")
                 else:
-                    # --- Normal CT sensor processing for v2/v3 ---
-                    # V2: *Raw sensor* values, converted to kilowatts during aggregation
-                    # V3: *Pre-scaled* values, converted to kilowatts during aggregation
-                    port_and_value = data[3]
-                    value_str = port_and_value.split(",")[1]
-                    value = float(value_str)
-                    sid = data[0]
-                    label = f"efergy_{hub_version}_{sid}"
+                    sid = data["sid"]
+                    label = data["label"]
+                    value = data["value"]
+                    
+                    logging.debug(f"Logging sensor: {label}, raw: {value}")
+                    database.log_data(label, value)
 
-                logging.debug(f"Logging sensor: {label}, raw: {value}")
-                database.log_data(label, value)
+                    # Publish power reading
+                    self.server.mqtt_manager.publish_power(label, sid, hub_version, value)
 
-                # Publish power reading
-                self.server.mqtt_manager.publish_power(label, sid, hub_version, value)
-
-            except (IndexError, ValueError, TypeError) as e:
-                logging.warning(f"Failed to parse line '{line}': {e}")
             except Exception as e:
-                logging.error(f"Unexpected error processing line '{line}': {e}")
+                logging.error(f"Unexpected error processing parsed data {data}: {e}")
 
 
     def log_message(self, format, *args):

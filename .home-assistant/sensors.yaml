@@ -14,19 +14,19 @@
   db_url: sqlite://///energy/data/readings.db
   query: >
     SELECT  CASE
-                WHEN labels.label LIKE '%h2%'
-                    THEN ((readings.value / 100.0) * 230 * 0.6) / 10000.0
+                WHEN labels.label LIKE '%h1%' OR labels.label LIKE '%h2%'
+                    THEN (0.6 * 230 * readings.value) / 1000.0
                 WHEN labels.label LIKE '%h3%'
-                    THEN (readings.value / 10.0) / 1000.0
+                    THEN (readings.value / 10.0)
                 ELSE readings.value
-            END AS kW
+            END AS W
     FROM readings
     INNER JOIN labels
         ON labels.label_id = readings.label_id
     WHERE labels.label LIKE 'efergy_h%'
     ORDER BY readings.timestamp DESC
     LIMIT 1;
-  column: kW
-  unit_of_measurement: "kW"
+  column: W
+  unit_of_measurement: "W"
   device_class: power
   state_class: measurement
