@@ -4,7 +4,9 @@ import time
 import sqlite3
 from pathlib import Path
 from typing import Optional, Dict, Union
-from config import SQLITE_TIMEOUT
+from config import (
+    SQLITE_TIMEOUT, POWER_FACTOR, MAINS_VOLTAGE
+)
 
 
 class Database:
@@ -227,10 +229,8 @@ class Database:
         cursor.execute("""
             SELECT timestamp,
                    CASE
-                       WHEN labels.label LIKE 'efergy_h1%%'
-                           THEN readings.value / 1000.0
-                       WHEN labels.label LIKE 'efergy_h2%%'
-                           THEN ((readings.value / 100.0) * 230 * 0.6) / 10000.0
+                       WHEN labels.label LIKE 'efergy_h1%%' OR labels.label LIKE 'efergy_h2%%'
+                           THEN (? * ? * (readings.value / 1000.0)) / 1000.0
                        WHEN labels.label LIKE 'efergy_h3%%'
                            THEN (readings.value / 10.0) / 1000.0
                        ELSE readings.value / 1000.0
@@ -239,7 +239,7 @@ class Database:
             INNER JOIN labels ON labels.label_id = readings.label_id
             WHERE timestamp >= ? AND timestamp < ?
             ORDER BY timestamp ASC
-        """, (hour_start, hour_end))
+        """, (POWER_FACTOR, MAINS_VOLTAGE, hour_start, hour_end))
 
         rows = cursor.fetchall()
         if not rows:
