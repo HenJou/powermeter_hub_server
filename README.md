@@ -195,7 +195,7 @@ sql: !include sensors.yaml
 5. **Restart Home Assistant**.
 
 You will now have two sensors:
-* `sensor.sensor.efergy_hub_power_<sid>`: The instantaneous power reading in W.
+* `sensor.efergy_hub_power_<sid>`: The instantaneous power reading in W.
 * `sensor.efergy_hub_energy_consumption`: A running total of energy consumed in kWh, which can be added directly to your Home Assistant Energy Dashboard.
 
 
