@@ -39,7 +39,20 @@ jobs:
           echo "CONTEXT=./hub-server" >> $GITHUB_ENV
           echo "IMAGE_NAME=ghcr.io/devoldschool/powermeter_hub_server/hub-server" >> $GITHUB_ENV
 
-      # Step 5: Determine tags
+      # Step 5: Generate version
+      - name: Generate version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Writing version $VERSION to __version__.py"
+          echo "__version__ = \"$VERSION\"" > hub-server/__version__.py
+
+      # Step 6: Determine tags
       - name: Determine tags
         run: |
           TAGS="${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${GITHUB_SHA}"
@@ -48,7 +61,7 @@ jobs:
           fi
           echo "TAGS=$TAGS" >> $GITHUB_ENV
 
-      # Step 6: Build and push Docker image
+      # Step 7: Build and push Docker image
       - name: Build & Push
         uses: docker/build-push-action@v5
         with:
@@ -58,3 +71,4 @@ jobs:
           tags: ${{ env.TAGS }}
           labels: |
             org.opencontainers.image.description=PowerMeter Hub Server.
+            org.opencontainers.image.version=${{ env.VERSION }}
