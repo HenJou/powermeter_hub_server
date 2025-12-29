@@ -245,16 +245,16 @@ if __name__ == '__main__':
         format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
     )
 
-    # Print startup banner
-    print("=" * 60)
-    print("  Efergy Hub Server")
-    print(f"  Version: {__version__}")
-    print("=" * 60)
-    print(f"  Python: {sys.version.split()[0]}")
-    print(f"  Port: {SERVER_PORT}")
-    print(f"  MQTT: {'enabled' if MQTT_ENABLED else 'disabled'}")
-    print(f"  HA Discovery: {'enabled' if HA_DISCOVERY else 'disabled'}")
-    print("=" * 60)
+    # Startup banner
+    logging.info("=" * 60)
+    logging.info("  Efergy Hub Server")
+    logging.info(f"  Version: {__version__}")
+    logging.info("=" * 60)
+    logging.info(f"  Python: {sys.version.split()[0]}")
+    logging.info(f"  Port: {SERVER_PORT}")
+    logging.info(f"  MQTT: {'enabled' if MQTT_ENABLED else 'disabled'}")
+    logging.info(f"  HA Discovery: {'enabled' if HA_DISCOVERY else 'disabled'}")
+    logging.info("=" * 60)
 
     # Adjust this path as needed for your project structure
     DB_FILE_PATH = Path(__file__).resolve().parent / "data/readings.db"
