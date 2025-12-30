@@ -6,6 +6,7 @@ Efergy hub, logging incoming sensor data to a sqlite database.
 """
 import logging
 import socket
+import sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from typing import Type
 from urllib.parse import urlparse, parse_qs
@@ -14,8 +15,9 @@ from database import Database
 from mqtt_manager import MQTTManager
 from aggregator import Aggregator
 from payload_parser import parse_sensor_payload
+from __version__ import __version__
 from config import (
-    SERVER_PORT, LOG_LEVEL
+    SERVER_PORT, LOG_LEVEL, MQTT_ENABLED, HA_DISCOVERY
 )
 
 class EfergyHTTPServer(HTTPServer):
@@ -242,6 +244,17 @@ if __name__ == '__main__':
         level=logging_level,
         format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
     )
+
+    # Startup banner
+    logging.info("=" * 60)
+    logging.info("  Efergy Hub Server")
+    logging.info(f"  Version: {__version__}")
+    logging.info("=" * 60)
+    logging.info(f"  Python: {sys.version.split()[0]}")
+    logging.info(f"  Port: {SERVER_PORT}")
+    logging.info(f"  MQTT: {'enabled' if MQTT_ENABLED else 'disabled'}")
+    logging.info(f"  HA Discovery: {'enabled' if HA_DISCOVERY else 'disabled'}")
+    logging.info("=" * 60)
 
     # Adjust this path as needed for your project structure
     DB_FILE_PATH = Path(__file__).resolve().parent / "data/readings.db"

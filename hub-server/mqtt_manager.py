@@ -129,7 +129,7 @@ class MQTTManager:
             unit_of_measurement = POWER_UNIT_OF_MEASUREMENT_H3
             value_template = POWER_VALUE_TEMPLATE_H3
         else:
-            unit_of_measurement = "kW"
+            unit_of_measurement = "W"
             value_template = "{{ (value_json.value | float) }}"
 
         payload = {
