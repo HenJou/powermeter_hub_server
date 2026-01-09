@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 import sqlite3
 import time
@@ -115,3 +117,63 @@ def test_truncate_old_data(db):
         
         cursor.execute("SELECT count(*) FROM energy_hourly WHERE hour_start < ?", (now - 31*24*3600,))
         assert cursor.fetchone()[0] == 0
+
+
+def test_reconnect(db):
+    db.log_data("reconnect_test", 123.0, timestamp=1000)
+
+    # Simulate connection loss
+    if db._conn:
+        db._conn.close()
+        db._conn = None
+
+    # Now log again — _get_connection should reconnect automatically
+    db.log_data("reconnect_test", 456.0, timestamp=1100)
+
+    # Verify both entries exist
+    with sqlite3.connect(db.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM readings WHERE label_id = (SELECT label_id FROM labels WHERE label=?) ORDER BY timestamp", ("reconnect_test",))
+        rows = [row[0] for row in cursor.fetchall()]
+
+    assert rows == [123.0, 456.0]
+
+
+def test_connection_error_recovery(db, caplog):
+    """
+    Simulate a sqlite3.OperationalError on the first connection attempt.
+    Verify that the error is logged and the connection recovers.
+    """
+    caplog.set_level(logging.WARNING)
+
+    # Save original _connect method
+    original_connect = db._connect
+    call_count = {"count": 0}
+
+    def failing_connect():
+        if call_count["count"] == 0:
+            call_count["count"] += 1
+            # Simulate OperationalError on first call
+            raise sqlite3.OperationalError("simulated DB failure")
+        else:
+            original_connect()
+
+    # Patch the _connect method
+    db._connect = failing_connect
+
+    # Attempt to log data — first attempt will fail, second should succeed
+    db.log_data("error_test_label", 42.0)
+
+    # Check that a warning was logged
+    warnings = [rec for rec in caplog.records if "DB connection error" in rec.message]
+    assert len(warnings) > 0
+
+    # Check that the data was successfully logged despite the first failure
+    with sqlite3.connect(db.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM readings WHERE label_id = (SELECT label_id FROM labels WHERE label=?)", ("error_test_label",))
+        row = cursor.fetchone()
+        assert row[0] == 42.0
+
+    # Restore original method
+    db._connect = original_connect

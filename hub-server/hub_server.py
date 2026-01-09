@@ -17,7 +17,10 @@ from aggregator import Aggregator
 from payload_parser import parse_sensor_payload
 from __version__ import __version__
 from config import (
-    SERVER_PORT, LOG_LEVEL, MQTT_ENABLED, HA_DISCOVERY
+    SERVER_PORT, LOG_LEVEL, MQTT_ENABLED, HA_DISCOVERY, ENERGY_MONTHLY_RESET, HISTORY_RETENTION_MONTHS, SQLITE_TIMEOUT,
+    SQLITE_RETRIES, SQLITE_RETRY_DELAY, POWER_VALUE_TEMPLATE_H1, POWER_UNIT_OF_MEASUREMENT_H1, POWER_VALUE_TEMPLATE_H2,
+    POWER_UNIT_OF_MEASUREMENT_H2, POWER_VALUE_TEMPLATE_H3, POWER_UNIT_OF_MEASUREMENT_H3, ENERGY_VALUE_TEMPLATE,
+    ENERGY_UNIT_OF_MEASUREMENT
 )
 
 class EfergyHTTPServer(HTTPServer):
@@ -252,9 +255,24 @@ if __name__ == '__main__':
     logging.info("=" * 60)
     logging.info(f"  Python: {sys.version.split()[0]}")
     logging.info(f"  Port: {SERVER_PORT}")
+    logging.info(f"  Logging level: {LOG_LEVEL}")
     logging.info(f"  MQTT: {'enabled' if MQTT_ENABLED else 'disabled'}")
-    logging.info(f"  HA Discovery: {'enabled' if HA_DISCOVERY else 'disabled'}")
+    logging.info(f"  HA discovery: {'enabled' if HA_DISCOVERY else 'disabled'}")
+    logging.info(f"  Monthly reset: {ENERGY_MONTHLY_RESET}")
+    logging.info(f"  Retention months: {HISTORY_RETENTION_MONTHS}")
     logging.info("=" * 60)
+
+    logging.debug(f"  SQL timeout: {SQLITE_TIMEOUT}")
+    logging.debug(f"  SQL retry (R|D): {SQLITE_RETRIES} | {SQLITE_RETRY_DELAY}")
+    logging.debug(f"  Power value template H1: {POWER_VALUE_TEMPLATE_H1}")
+    logging.debug(f"  Power unit of measurement H1: {POWER_UNIT_OF_MEASUREMENT_H1}")
+    logging.debug(f"  Power value template H2: {POWER_VALUE_TEMPLATE_H2}")
+    logging.debug(f"  Power unit of measurement H2: {POWER_UNIT_OF_MEASUREMENT_H2}")
+    logging.debug(f"  Power value template H3: {POWER_VALUE_TEMPLATE_H3}")
+    logging.debug(f"  Power unit of measurement H3: {POWER_UNIT_OF_MEASUREMENT_H3}")
+    logging.debug(f"  Energy value template: {ENERGY_VALUE_TEMPLATE}")
+    logging.debug(f"  Energy unit of measurement: {ENERGY_UNIT_OF_MEASUREMENT}")
+    logging.debug("=" * 60)
 
     # Adjust this path as needed for your project structure
     DB_FILE_PATH = Path(__file__).resolve().parent / "data/readings.db"

@@ -10,6 +10,8 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # SQL timeout in seconds
 SQLITE_TIMEOUT = float(os.getenv("SQLITE_TIMEOUT", "5.0"))
+SQLITE_RETRIES = int(os.getenv("SQLITE_RETRIES", "5"))
+SQLITE_RETRY_DELAY = float(os.getenv("SQLITE_RETRY_DELAY", "0.2"))
 
 # Enable or disable MQTT
 MQTT_ENABLED = os.getenv("MQTT_ENABLED", "false").lower() in ("true", "1", "yes", "on")
