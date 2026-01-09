@@ -2,11 +2,12 @@ import logging
 import threading
 import time
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, Generator
 from config import (
-    SQLITE_TIMEOUT, POWER_FACTOR, MAINS_VOLTAGE, ENERGY_MONTHLY_RESET
+    SQLITE_TIMEOUT, POWER_FACTOR, MAINS_VOLTAGE, ENERGY_MONTHLY_RESET, SQLITE_RETRIES, SQLITE_RETRY_DELAY
 )
 
 
@@ -27,10 +28,57 @@ class Database:
             logging.info(f"Creating database directory: {self.db_path.parent}")
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.label_cache: Dict[str, int] = {}
+        self._conn: Optional[sqlite3.Connection] = None
+        self._conn_lock = threading.Lock()
+        self._label_cache: Dict[str, int] = {}
+        self._label_lock = threading.Lock()
+
         self._aggregator_stop = threading.Event()
         self._aggregator_thread = None
         logging.info(f"Database initialized at path: {self.db_path}")
+
+    def _connect(self):
+        if self._conn is None:
+            if not self.db_path.parent.exists():
+                raise RuntimeError("Database directory missing")
+
+        self._conn = sqlite3.connect(
+            self.db_path,
+            timeout=SQLITE_TIMEOUT,
+            check_same_thread=False
+        )
+
+        self._conn.execute("PRAGMA journal_mode=WAL;")
+        self._conn.execute("PRAGMA busy_timeout = 5000;")
+
+
+    def _get_connection(self):
+        return self.__get_connection_cm()
+
+
+    @contextmanager
+    def __get_connection_cm(self) -> Generator[sqlite3.Connection, None, None]:
+        """
+        Context manager providing a thread-safe single connection with auto-reconnect.
+        """
+        for attempt in range(1, SQLITE_RETRIES + 1):
+            try:
+                self._connect()
+                with self._conn_lock:
+                    yield self._conn
+                return
+            except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+                logging.warning(f"DB connection error (attempt {attempt}/{SQLITE_RETRIES}): {e}")
+                if self._conn:
+                    try:
+                        self._conn.close()
+                    except Exception:
+                        pass
+                    self._conn = None
+                if attempt < SQLITE_RETRIES:
+                    time.sleep(SQLITE_RETRY_DELAY)
+
+        raise RuntimeError("Could not acquire DB connection after retries")
 
 
     def setup(self) -> None:
@@ -46,7 +94,7 @@ class Database:
 
         logging.debug("Setting up database tables and indices...")
 
-        with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+        with self._get_connection() as conn:
             cursor = conn.cursor()
 
             # Enable WAL + busy timeout
@@ -113,23 +161,24 @@ class Database:
             The integer ID for the label.
         """
         # Check cache first
-        if label in self.label_cache:
-            return self.label_cache[label]
+        with self._label_lock:
+            if label in self._label_cache:
+                return self._label_cache[label]
 
-        # If not in cache, check database
-        cursor.execute("SELECT label_id FROM labels WHERE label=?", (label,))
-        row = cursor.fetchone()
+            # If not in cache, check database
+            cursor.execute("SELECT label_id FROM labels WHERE label=?", (label,))
+            row = cursor.fetchone()
 
-        if row:
-            label_id = row[0]
-        else:
-            # Not in DB, so create it
-            cursor.execute("INSERT INTO labels(label) VALUES (?)", (label,))
-            label_id = cursor.lastrowid
-            logging.debug(f"Created new label '{label}' with id {label_id}")
+            if row:
+                label_id = row[0]
+            else:
+                # Not in DB, so create it
+                cursor.execute("INSERT INTO labels(label) VALUES (?)", (label,))
+                label_id = cursor.lastrowid
+                logging.debug(f"Created new label '{label}' with id {label_id}")
 
-        self.label_cache[label] = label_id
-        return label_id
+            self._label_cache[label] = label_id
+            return label_id
 
 
     def log_data(self, label: str, value: float, timestamp: Optional[int] = None) -> None:
@@ -148,7 +197,7 @@ class Database:
             timestamp = int(time.time())
 
         try:
-            with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
                 label_id = self._get_or_create_label_id(cursor, label)
 
@@ -157,11 +206,9 @@ class Database:
                     "INSERT INTO readings(label_id, timestamp, value) VALUES (?,?,?)",
                     (label_id, int(timestamp), value)
                 )
-                # The 'with' block automatically commits on success
+                conn.commit()
 
-            logging.debug(
-                f"Inserted reading: {label} ({label_id}), {value}"
-            )
+            logging.debug(f"Inserted reading: {label} ({label_id}), {value}")
 
         except sqlite3.Error as e:
             logging.error(f"Failed to log data for label '{label}': {e}")
@@ -171,7 +218,7 @@ class Database:
 
     def get_all_labels(self):
         try:
-            with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT label FROM labels ORDER BY label ASC")
                 return [row[0] for row in cursor.fetchall()]
@@ -198,7 +245,7 @@ class Database:
                 query += " WHERE hour_start >= ?"
                 params = (month_start_ts,)
 
-            with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(query, params)
                 row = cursor.fetchone()
@@ -232,7 +279,7 @@ class Database:
             cutoff_ts = int(cutoff_date.timestamp())
 
             deleted_count = 0
-            with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
                 
                 # Delete from readings
@@ -343,7 +390,7 @@ class Database:
         processed = 0
 
         try:
-            with sqlite3.connect(self.db_path, timeout=SQLITE_TIMEOUT) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
 
                 next_hour = self.fetch_hour_range_to_process(cursor)

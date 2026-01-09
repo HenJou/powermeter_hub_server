@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+/venv/
 
 # Database files
 *.db
@@ -21,3 +22,7 @@ hub-server/data/*.db-*
 
 # Logs
 *.log
+
+# Tests
+/hub-server/.coverage
+scripts/publish-test-image.sh
