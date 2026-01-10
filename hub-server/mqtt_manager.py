@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import paho.mqtt.client as mqtt
+from __version__ import __version__
 from config import (
     MQTT_ENABLED, MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS,
     MQTT_BASE_TOPIC, HA_DISCOVERY, HA_DISCOVERY_PREFIX,
@@ -22,6 +23,10 @@ def get_topic(label, sensor_type="power"):
         return f"{MQTT_BASE_TOPIC}/{label}/power"
     else:
         return f"{MQTT_BASE_TOPIC}/{label}/energy"
+
+
+GITHUB_REPO = "https://github.com/DevOldSchool/powermeter_hub_server"
+SW_VERSION = __version__
 
 
 class MQTTManager:
@@ -145,7 +150,9 @@ class MQTTManager:
                 "name": DEVICE_NAME,
                 "identifiers": DEVICE_IDENTIFIERS,
                 "manufacturer": DEVICE_MANUFACTURER,
-                "model": DEVICE_MODEL
+                "model": DEVICE_MODEL,
+                "sw_version": SW_VERSION,
+                "configuration_url": GITHUB_REPO
             }
         }
 
@@ -175,7 +182,9 @@ class MQTTManager:
                 "name": DEVICE_NAME,
                 "identifiers": DEVICE_IDENTIFIERS,
                 "manufacturer": DEVICE_MANUFACTURER,
-                "model": DEVICE_MODEL
+                "model": DEVICE_MODEL,
+                "sw_version": SW_VERSION,
+                "configuration_url": GITHUB_REPO
             }
         }
 
