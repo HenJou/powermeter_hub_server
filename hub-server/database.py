@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Union, Generator
+from typing import Optional, Dict, Union
 from config import (
     SQLITE_TIMEOUT, POWER_FACTOR, MAINS_VOLTAGE, ENERGY_MONTHLY_RESET, SQLITE_RETRIES, SQLITE_RETRY_DELAY
 )
@@ -38,8 +38,10 @@ class Database:
         logging.info(f"Database initialized at path: {self.db_path}")
 
     def _connect(self):
-        if self._conn is None:
-            if not self.db_path.parent.exists():
+        if self._conn is not None:
+            return
+            
+         if not self.db_path.parent.exists():
                 raise RuntimeError("Database directory missing")
 
         self._conn = sqlite3.connect(
@@ -57,26 +59,28 @@ class Database:
 
 
     @contextmanager
-    def __get_connection_cm(self) -> Generator[sqlite3.Connection, None, None]:
+    def __get_connection_cm(self):
         """
         Context manager providing a thread-safe single connection with auto-reconnect.
         """
         for attempt in range(1, SQLITE_RETRIES + 1):
             try:
-                self._connect()
                 with self._conn_lock:
+                    self._connect()
                     yield self._conn
                 return
             except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
                 logging.warning(f"DB connection error (attempt {attempt}/{SQLITE_RETRIES}): {e}")
-                if self._conn:
-                    try:
-                        self._conn.close()
-                    except Exception:
-                        pass
-                    self._conn = None
+                with self._conn_lock:
+                    if self._conn:
+                        try:
+                            self._conn.close()
+                        except Exception:
+                            pass
+                        self._conn = None
                 if attempt < SQLITE_RETRIES:
                     time.sleep(SQLITE_RETRY_DELAY)
+
 
         raise RuntimeError("Could not acquire DB connection after retries")
 
@@ -98,6 +102,7 @@ class Database:
             cursor = conn.cursor()
 
             # Enable WAL + busy timeout
+            self._conn.execute("PRAGMA synchronous=NORMAL;")
             cursor.execute("PRAGMA journal_mode=WAL;")
             cursor.execute("PRAGMA busy_timeout = 5000;")
 
@@ -293,7 +298,7 @@ class Database:
                 conn.commit()
 
                 # Reclaim space
-                cursor.execute("VACUUM")
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                 
             if deleted_count > 0:
                 logging.info(f"Truncated {deleted_count} old records (older than {cutoff_date.strftime('%Y-%m-%d')})")
