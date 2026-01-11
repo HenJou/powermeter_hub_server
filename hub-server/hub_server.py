@@ -92,6 +92,48 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
             logging.error(f"Failed during response send: {e}")
 
 
+    def _handle_unknown_packet(self, post_data_bytes: bytes = None):
+        try:
+            parsed_url = urlparse(self.path)
+            query = parse_qs(parsed_url.query)
+            content_length = int(self.headers.get("Content-Length", 0))
+
+            if post_data_bytes is None and content_length > 0:
+                post_data_bytes = self.rfile.read(content_length)
+
+            logging.warning("========== UNKNOWN PACKET ==========")
+            logging.warning("Method: %s", self.command)
+            logging.warning("Raw path: %s", self.path)
+            logging.warning("Path: %s", parsed_url.path)
+            logging.warning("Query: %s", query)
+            logging.warning("Content-Type: %s", self.headers.get("Content-Type"))
+            logging.warning("Content-Length: %d", content_length)
+            logging.warning("Headers: %s", dict(self.headers))
+
+            if not post_data_bytes:
+                logging.warning("No request body present")
+            else:
+                utf8 = post_data_bytes.decode("utf-8", "ignore")
+                hex_lines = []
+
+                for i in range(0, len(post_data_bytes), 16):
+                    chunk = post_data_bytes[i:i + 16]
+                    hex_bytes = " ".join(f"{b:02X}" for b in chunk)
+                    ascii_bytes = "".join(chr(b) if 32 <= b <= 126 else "." for b in chunk)
+                    hex_lines.append(f"{i:04X}  {hex_bytes:<48}  {ascii_bytes}")
+
+                logging.warning("Payload UTF8:\n%s", utf8)
+                logging.warning("Payload HEX:\n%s", "\n".join(hex_lines))
+
+            logging.warning("====================================")
+
+
+        except Exception:
+            logging.exception("Error in unknown HTTP handler")
+            if not self.wfile.closed:
+                self._send_response(500, b"Internal Server Error")
+
+
     def do_GET(self):
         """Handles GET requests for key checking."""
         try:
@@ -111,6 +153,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
             else:
                 code = 404
                 content_bytes = b"Not Found"
+                self._handle_unknown_packet()
 
             self._send_response(code, content_bytes)
 
@@ -159,7 +202,7 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
                 else:
                     logging.warning(f"Unexpected /recjson body format: {decoded_body[:100]}")
             else:
-                logging.warning(f"Unknown POST path or content-type: {self.path} / {content_type}")
+                self._handle_unknown_packet(post_data_bytes)
 
             self._send_response(200, b"success")
 
@@ -167,6 +210,41 @@ class FakeEfergyServer(SimpleHTTPRequestHandler):
             logging.error(f"Exception in POST: {e}")
             if not self.wfile.closed:
                 self._send_response(500, b"Internal Server Error")
+
+
+    def do_PUT(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
+
+
+    def do_DELETE(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
+
+
+    def do_OPTIONS(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
+
+
+    def do_PATCH(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
+
+
+    def do_HEAD(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
+
+
+    def do_TRACE(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
+
+
+    def do_CONNECT(self):
+        self._handle_unknown_packet()
+        self._send_response(200, b"success")
 
 
     def process_sensor_data(self, post_data_bytes: bytes, hub_version: str, database: Database):
