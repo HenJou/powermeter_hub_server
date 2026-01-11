@@ -12,11 +12,11 @@ from config import (
     POWER_UNIT_OF_MEASUREMENT_H3, POWER_VALUE_TEMPLATE_H3,
     ENERGY_NAME, ENERGY_ICON, ENERGY_DEVICE_CLASS, ENERGY_STATE_CLASS,
     ENERGY_UNIT_OF_MEASUREMENT, ENERGY_VALUE_TEMPLATE,
-    DEVICE_NAME, DEVICE_MODEL, DEVICE_IDENTIFIERS, DEVICE_MANUFACTURER
+    DEVICE_NAME, DEVICE_MODEL, DEVICE_IDENTIFIERS, DEVICE_MANUFACTURER,
+    DEVICE_URL
 )
 
 ENERGY_SENSOR_LABEL = "energy_consumption"
-
 
 def get_topic(label, sensor_type="power"):
     if sensor_type == "power":
@@ -25,7 +25,6 @@ def get_topic(label, sensor_type="power"):
         return f"{MQTT_BASE_TOPIC}/{label}/energy"
 
 
-GITHUB_REPO = "https://github.com/DevOldSchool/powermeter_hub_server"
 SW_VERSION = __version__
 
 
@@ -37,6 +36,7 @@ class MQTTManager:
         self.max_retries = max_retries
         self.retry_interval = retry_interval
         self.connected = False
+        self.hub_version: str | None = None
 
         if not self.enabled:
             logging.debug("MQTT disabled via config.")
@@ -118,6 +118,9 @@ class MQTTManager:
     def publish_power_discovery(self, label: str, sid: str, topic: str, hub_version: str):
         if not self.enabled or not HA_DISCOVERY:
             return
+        if self.hub_version is None:
+            logging.warning("Energy discovery attempted without hub_version – skipped")
+            return
 
         config_topic = f"{HA_DISCOVERY_PREFIX}/sensor/{label}/config"
 
@@ -152,7 +155,8 @@ class MQTTManager:
                 "manufacturer": DEVICE_MANUFACTURER,
                 "model": DEVICE_MODEL,
                 "sw_version": SW_VERSION,
-                "configuration_url": GITHUB_REPO
+                "hw_version": f"{hub_version}",
+                "configuration_url": DEVICE_URL
             }
         }
 
@@ -164,6 +168,7 @@ class MQTTManager:
         """
         Home Assistant discovery for energy sensor.
         """
+        #logging.warning(f"Energy discovery using hub_version={self.hub_version}")
         if not self.enabled or not HA_DISCOVERY:
             return
 
@@ -184,7 +189,7 @@ class MQTTManager:
                 "manufacturer": DEVICE_MANUFACTURER,
                 "model": DEVICE_MODEL,
                 "sw_version": SW_VERSION,
-                "configuration_url": GITHUB_REPO
+                "configuration_url": DEVICE_URL
             }
         }
 
@@ -196,6 +201,11 @@ class MQTTManager:
     def publish_power(self, label: str, sid: str, hub_version: str, value: float):
         if not self.enabled:
             return
+
+        # Store hub version once
+        if self.hub_version is None:
+            self.hub_version = hub_version
+            logging.info(f"Detected hub version: {hub_version}")
 
         logging.debug(f"Publishing power for {label} with value {value}")
         topic = get_topic(label, sensor_type="power")
