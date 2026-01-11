@@ -41,8 +41,8 @@ class Database:
         if self._conn is not None:
             return
             
-         if not self.db_path.parent.exists():
-                raise RuntimeError("Database directory missing")
+        if not self.db_path.parent.exists():
+            raise RuntimeError("Database directory missing")
 
         self._conn = sqlite3.connect(
             self.db_path,
