@@ -25,8 +25,6 @@ def get_topic(label, sensor_type="power"):
         return f"{MQTT_BASE_TOPIC}/{label}/energy"
 
 
-SW_VERSION = __version__
-
 
 class MQTTManager:
     def __init__(self, max_retries: int = 10, retry_interval: int = 5):
@@ -154,7 +152,6 @@ class MQTTManager:
                 "identifiers": DEVICE_IDENTIFIERS,
                 "manufacturer": DEVICE_MANUFACTURER,
                 "model": DEVICE_MODEL,
-                "sw_version": SW_VERSION,
                 "hw_version": f"{hub_version}",
                 "configuration_url": DEVICE_URL
             }
@@ -168,7 +165,6 @@ class MQTTManager:
         """
         Home Assistant discovery for energy sensor.
         """
-        #logging.warning(f"Energy discovery using hub_version={self.hub_version}")
         if not self.enabled or not HA_DISCOVERY:
             return
 
@@ -188,7 +184,6 @@ class MQTTManager:
                 "identifiers": DEVICE_IDENTIFIERS,
                 "manufacturer": DEVICE_MANUFACTURER,
                 "model": DEVICE_MODEL,
-                "sw_version": SW_VERSION,
                 "configuration_url": DEVICE_URL
             }
         }
